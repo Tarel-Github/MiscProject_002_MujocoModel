@@ -63,6 +63,7 @@ def rig_from_gltf(path: str | Path, name: str | None = None, head_body: str = "h
     if not cands:
         raise ValueError(f"no mesh{' ' + mesh if mesh else ''} in {path}")
     gm = max(cands, key=lambda g: (len(g.morph), len(g.V)))
+    _weld_gltf(gm)
     V = gltf.to_mujoco(gm.V, gm.world) * scale + np.asarray(offset, float)
     if gm.joints is not None:
         jaw_idx = [i for i, n in enumerate(gm.joint_names) if "jaw" in n.lower()]
@@ -80,3 +81,30 @@ def rig_from_gltf(path: str | Path, name: str | None = None, head_body: str = "h
     log.info("face rig '%s' from %s: %d vertices, %d shape keys, jaw-weighted vertices: %d",
              rig.name, Path(path).name, len(V), len(gm.morph), int((rig.jaw_w > 0.5).sum()))
     return rig
+
+
+def _weld_gltf(gm) -> None:
+    """Merge vertices the exporter split only for normals/UV seams (same position), so the
+    face deforms and shades as one surface. Keeps the first copy's deltas and weights."""
+    cols = [np.round(gm.V / 1e-7)]
+    if gm.joints is not None:     # vertices split on purpose (e.g. lip seams) differ in weights
+        dense = np.zeros((len(gm.V), max(len(gm.joint_names), int(gm.joints.max()) + 1)))
+        for k in range(gm.joints.shape[1]):
+            np.add.at(dense, (np.arange(len(gm.V)), gm.joints[:, k]), gm.weights[:, k])
+        cols.append(np.round(dense / 1e-4))
+    for d in gm.morph.values():
+        cols.append(np.round(d / 1e-7))
+    key = np.concatenate(cols, axis=1).astype(np.int64)
+    _, first, inv = np.unique(key, axis=0, return_index=True, return_inverse=True)
+    inv = inv.reshape(-1)
+    if len(first) == len(gm.V):
+        return
+    gm.V = gm.V[first]
+    gm.F = inv[gm.F]
+    good = (gm.F[:, 0] != gm.F[:, 1]) & (gm.F[:, 1] != gm.F[:, 2]) & (gm.F[:, 0] != gm.F[:, 2])
+    gm.F = gm.F[good]
+    gm.morph = {k: d[first] for k, d in gm.morph.items()}
+    if gm.N is not None:
+        gm.N = gm.N[first]
+    if gm.joints is not None:
+        gm.joints, gm.weights = gm.joints[first], gm.weights[first]
