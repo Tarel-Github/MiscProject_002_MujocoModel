@@ -235,3 +235,25 @@ def test_jaw_open_close_and_readout(head):
     d.ctrl[_act(m, "jaw_open")] = 0
     _settle(m, d, 0.5)
     assert abs(_q(m, d, "jaw_open")) < D(1.5)
+
+
+def test_full_humanoid_structure_and_stability():
+    from mjstudio.library.humanoid import make_humanoid_doc
+    ed = make_humanoid_doc()
+    m = ed.model
+    names = {mujoco.mj_id2name(m, OBJ.mjOBJ_BODY, b) for b in range(m.nbody)}
+    for b in ("pelvis", "abdomen", "chest", "head", "jaw", "eye_left", "eye_right", "shoulder_left",
+              "upper_arm_left", "forearm_left", "hand_left", "thigh_left", "shank_left", "talus_left",
+              "hindfoot_left", "midfoot_left", "forefoot_left", "toes_left", "index_distal_right",
+              "thumb_distal_right"):
+        assert b in names, b
+    assert m.nskin == 1 and m.nkey == 1
+    assert 70 < m.body_subtreemass[0] < 80
+    d = mujoco.MjData(m)
+    mujoco.mj_resetDataKeyframe(m, d, 0)
+    for _ in range(1000):                       # 2 s
+        mujoco.mj_step(m, d)
+    assert np.all(np.isfinite(d.qpos)) and sum(int(w.number) for w in d.warning) == 0
+    feet = [mujoco.mj_name2id(m, OBJ.mjOBJ_SENSOR, f"touch_{z}_{s}") for z in ("heel_zone", "forefoot_zone")
+            for s in ("left", "right")]
+    assert all(d.sensordata[m.sensor_adr[i]] > 0 for i in feet)   # standing on heels and forefeet

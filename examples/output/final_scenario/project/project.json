@@ -1,0 +1,284 @@
+{
+  "format": "mjstudio-project",
+  "version": 1,
+  "model": "model.xml",
+  "joint_groups": [],
+  "expressions": {
+    "face": {
+      "name": "face",
+      "skin": "face_skin",
+      "head_body": "head",
+      "jaw_body": "jaw",
+      "data": "face.npz",
+      "rgba": [
+        0.85,
+        0.67,
+        0.55,
+        1.0
+      ],
+      "meta": {
+        "source": "/home/user/MuJoCoModelStudio/examples/assets/face_blender.glb",
+        "joints": [
+          "head",
+          "jaw"
+        ]
+      },
+      "bones": [],
+      "params": [
+        {
+          "name": "smile",
+          "keys": {
+            "smile": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "blink_left",
+          "keys": {
+            "blink_left": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "blink_right",
+          "keys": {
+            "blink_right": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "eye_wide_left",
+          "keys": {
+            "eye_wide_left": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "eye_wide_right",
+          "keys": {
+            "eye_wide_right": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "brow_raise_left",
+          "keys": {
+            "brow_raise_left": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "brow_raise_right",
+          "keys": {
+            "brow_raise_right": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "brow_lower_left",
+          "keys": {
+            "brow_lower_left": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "brow_lower_right",
+          "keys": {
+            "brow_lower_right": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "mouth_smile_left",
+          "keys": {
+            "mouth_smile_left": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "mouth_smile_right",
+          "keys": {
+            "mouth_smile_right": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "mouth_frown_left",
+          "keys": {
+            "mouth_frown_left": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "mouth_frown_right",
+          "keys": {
+            "mouth_frown_right": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "lips_part",
+          "keys": {
+            "lips_part": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "lip_pucker",
+          "keys": {
+            "lip_pucker": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "cheek_puff_left",
+          "keys": {
+            "cheek_puff_left": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        },
+        {
+          "name": "cheek_puff_right",
+          "keys": {
+            "cheek_puff_right": 1.0
+          },
+          "bones": {},
+          "lo": 0.0,
+          "hi": 1.0,
+          "group": "shape keys"
+        }
+      ],
+      "presets": {
+        "neutral": {},
+        "smile": {
+          "smile": 1.0
+        },
+        "frown": {
+          "brow_lower_left": 1.0,
+          "brow_lower_right": 1.0,
+          "mouth_frown_left": 0.8,
+          "mouth_frown_right": 0.8
+        },
+        "surprise": {
+          "brow_raise_left": 1.0,
+          "brow_raise_right": 1.0,
+          "eye_wide_left": 1.0,
+          "eye_wide_right": 1.0,
+          "lips_part": 0.7
+        },
+        "blink": {
+          "blink_left": 1.0,
+          "blink_right": 1.0
+        },
+        "wink_left": {
+          "blink_left": 1.0,
+          "mouth_smile_left": 0.5
+        },
+        "wink_right": {
+          "blink_right": 1.0,
+          "mouth_smile_right": 0.5
+        }
+      },
+      "values": {
+        "smile": 0.8,
+        "blink_left": 0.0,
+        "blink_right": 0.0,
+        "eye_wide_left": 0.0,
+        "eye_wide_right": 0.0,
+        "brow_raise_left": 0.0,
+        "brow_raise_right": 0.0,
+        "brow_lower_left": 0.0,
+        "brow_lower_right": 0.0,
+        "mouth_smile_left": 0.0,
+        "mouth_smile_right": 0.0,
+        "mouth_frown_left": 0.0,
+        "mouth_frown_right": 0.0,
+        "lips_part": 0.0,
+        "lip_pucker": 0.0,
+        "cheek_puff_left": 0.0,
+        "cheek_puff_right": 0.0
+      },
+      "tracks": [
+        {
+          "param": "smile",
+          "times": [
+            0.0,
+            0.5,
+            2.0
+          ],
+          "values": [
+            0.0,
+            0.8,
+            0.8
+          ]
+        },
+        {
+          "param": "blink_left",
+          "times": [
+            0.0,
+            0.6,
+            0.7,
+            0.8,
+            2.0
+          ],
+          "values": [
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    }
+  },
+  "meta": {}
+}

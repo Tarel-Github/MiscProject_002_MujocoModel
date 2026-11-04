@@ -87,6 +87,9 @@ def add_mesh_asset(ed: Editor, mesh: M.TriMesh, name: str | None = None, ext: st
     nm = ed.doc.unique_name("mesh", name or mesh.name)
     key = _unique_key(ed, nm, ext)
     e = make("mesh", name=nm, file=key, scale=None if scale is None else mx.fmt_vec(np.broadcast_to(scale, 3)))
+    from .compiler import supports
+    if mesh.is_planar() and supports("mesh_inertia"):
+        e.set("inertia", "shell")   # newer MuJoCo computes mesh volume even for visual-only use
     with ed.batch(f"Add mesh {nm}"):
         ed.push(SetMemAsset(ed, key, M.encode(mesh, ext), f"Add mesh data {nm}"))
         sec = _asset_section(ed)

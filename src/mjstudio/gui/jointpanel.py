@@ -236,8 +236,11 @@ class JointPanel(QWidget):
     def _build_groups(self) -> None:
         while self.group_lay.count():
             it = self.group_lay.takeAt(0)
-            if it.widget() is not None:
-                it.widget().deleteLater()
+            w = it.widget()
+            if w is not None:
+                w.hide()
+                w.setParent(None)
+                w.deleteLater()
         for g in self.groups_provider():
             row = QWidget()
             h = QHBoxLayout(row)

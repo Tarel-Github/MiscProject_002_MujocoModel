@@ -164,6 +164,8 @@ class MainWindow(QMainWindow):
         self._act(lib, "Hand (5 fingers, 22 joints)…", lambda: self.insert_library("hand"))
         self._act(lib, "Foot (ankle/hindfoot/midfoot/forefoot/toes)…", lambda: self.insert_library("foot"))
         self._act(lib, "Head (eyes + jaw + neck)…", lambda: self.insert_library("head"))
+        lib.addSeparator()
+        self._act(lib, "Full humanoid (fingers, segmented feet, eyes, jaw, face)", self.insert_humanoid)
         self._act(mm, "Replace selected body with part…", self.replace_with_part)
         mm.addSeparator()
         self._act(mm, "&Recompile", self.ed.recompile, "F5")
@@ -501,6 +503,18 @@ class MainWindow(QMainWindow):
         if out:
             self.ed.select([out[0]])
             log.info("Inserted library part %s as '%s'", kind, out[0].get("name"))
+
+    def insert_humanoid(self):
+        if self.ed.doc.find_named("body", "pelvis") is not None or self.ed.doc.find_named("body", "head"):
+            QMessageBox.information(self, "Humanoid", "This model already has 'pelvis'/'head' bodies. "
+                                    "Start a new model (File > New) to build the full humanoid.")
+            return
+        from ..library.humanoid import build_humanoid
+        out = self._guard(lambda: build_humanoid(self.ed))
+        if out:
+            self.ed.select([out["pelvis"]])
+            self.view.reset_camera()
+            log.info("Built humanoid: %d joints, %d actuators", self.ed.model.njnt, self.ed.model.nu)
 
     def couple_selected(self):
         js = [e for e in self.ed.selection if e.tag == "joint" and e.get("name")]

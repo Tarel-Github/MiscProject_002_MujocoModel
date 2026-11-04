@@ -310,7 +310,7 @@ def _detailed_toes(ed, fore, S, s, zfo, mt1, mt5, sensors, actuators):
 # ======================================================================== head
 def build_head(ed: Editor, parent: Element | None, pos=(0, 0, 0), scale: float = 1.0, jaw_slide: bool = False,
                sensors: bool = True, actuators: bool = True, neck: bool = True, face: bool = False,
-               face_name: str = "face") -> Element:
+               face_name: str = "face", attach_face: bool = True) -> Element:
     """Head with two independently actuated eyes (yaw + pitch hinges each) and a
     hinged mandible. Frame: origin at the head centre, x forward, y left, z up.
       eye_<side>_yaw   [look left]  -45..45 deg      eye_<side>_pitch [look up] -45..30 deg
@@ -376,7 +376,7 @@ def build_head(ed: Editor, parent: Element | None, pos=(0, 0, 0), scale: float =
             ops.add_sensor(ed, "jointpos", joint="jaw_open")
             ops.add_sensor(ed, "gyro", name="head_gyro", site="head_imu")
             ops.add_sensor(ed, "accelerometer", name="head_accel", site="head_imu")
-    if face:
+    if face and attach_face:   # (callers inside an open batch attach after it, when the model is compiled)
         from ..core.faceops import attach_face_rig
         from .face import build_face_rig
         attach_face_rig(ed, build_face_rig(face_name, scale, head.get("name"), "jaw"))

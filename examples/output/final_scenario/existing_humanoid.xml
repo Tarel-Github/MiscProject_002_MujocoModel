@@ -1,0 +1,566 @@
+<mujoco model="humanoid">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.002"/>
+  <visual>
+    <global offwidth="1920" offheight="1080"/>
+  </visual>
+  <asset>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.25 0.3 0.38" rgb2="0.05 0.06 0.08" width="64" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.16 0.18 0.21" rgb2="0.22 0.24 0.28" width="512" height="512" mark="edge" markrgb="0.3 0.32 0.36"/>
+    <material name="grid" texture="grid" texrepeat="8 8" texuniform="true" reflectance="0.1"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="0 0 4" dir="0 0 -1" directional="true" diffuse="0.8 0.8 0.8"/>
+    <geom name="floor" type="plane" size="0 0 0.05" material="grid"/>
+    <body name="pelvis" pos="0 0 0.93801379">
+      <freejoint name="root"/>
+      <geom name="pelvis" type="capsule" size="0.08544" fromto="-0.01 -0.070361861 0.030155083 -0.01 0.070361861 0.030155083" mass="8.377" rgba="0.85 0.67 0.55 1"/>
+      <site name="pelvis_imu" pos="0 0 0.050258472" size="0.006"/>
+      <body name="abdomen" pos="0 0 0.095491097">
+        <joint name="lumbar_flex" type="hinge" pos="0 0 0" axis="0 1 0" range="-0.43633231 1.0471976" damping="8" armature="0.02"/>
+        <joint name="lumbar_lat" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.43633231 0.43633231" damping="8" armature="0.02"/>
+        <joint name="lumbar_rot" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.34906585 0.34906585" damping="8" armature="0.02"/>
+        <geom name="abdomen" type="capsule" size="0.09549" fromto="0 -0.045232625 0.10051694 0 0.045232625 0.10051694" mass="12.25" rgba="0.85 0.67 0.55 1"/>
+        <body name="chest" pos="0 0 0.21661401">
+          <joint name="thoracic_flex" type="hinge" pos="0 0 0" axis="0 1 0" range="-0.34906585 0.6981317" damping="8" armature="0.02"/>
+          <joint name="thoracic_lat" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.34906585 0.34906585" damping="8" armature="0.02"/>
+          <joint name="thoracic_rot" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.52359878 0.52359878" damping="8" armature="0.02"/>
+          <geom name="ribcage" type="ellipsoid" size="0.10051694 0.13067203 0.15077542" pos="0 0 0.12062033" mass="11.97" rgba="0.85 0.67 0.55 1"/>
+          <geom name="neck" type="capsule" size="0.04825" fromto="0.0050258472 0 0.22113728 0.010051694 0 0.29149914" rgba="0.85 0.67 0.55 1" mass="0" contype="0" conaffinity="0"/>
+          <site name="chest_imu" pos="0.050258472 0 0.15077542" size="0.006"/>
+          <body name="head" pos="0.010051694 0 0.361861">
+            <joint name="neck_pitch" type="hinge" pos="0 0 -0.09046525" axis="0 1 0" range="-0.6981317 0.87266463" damping="1" armature="0.01"/>
+            <joint name="neck_yaw" type="hinge" pos="0 0 -0.09046525" axis="0 0 1" range="-1.2217305 1.2217305" damping="1" armature="0.01"/>
+            <joint name="neck_roll" type="hinge" pos="0 0 -0.09046525" axis="1 0 0" range="-0.61086524 0.61086524" damping="1" armature="0.01"/>
+            <geom name="skull" type="ellipsoid" size="0.095491097 0.075387708 0.10051694" pos="-0.010051694 0 0.010051694" rgba="0.85 0.67 0.55 1" mass="4.062"/>
+            <site name="head_imu" pos="0 0 0.030155083" size="0.005"/>
+            <body name="eye_left" pos="0.070361861 0.031662837 0.030155083">
+              <joint name="eye_left_yaw" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.78539816 0.78539816" damping="0.002" armature="1e-05"/>
+              <joint name="eye_left_pitch" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.78539816 0.52359878" damping="0.002" armature="1e-05"/>
+              <geom name="eyeball_left" type="sphere" size="0.012062033" rgba="0.96 0.96 0.94 1" contype="0" conaffinity="0" mass="0.007617"/>
+              <geom name="iris_left" type="cylinder" size="0.0058299828 0.00080413555" pos="0.011358415 0 0" quat="0.70710678 0 0.70710678 0" rgba="0.25 0.38 0.55 1" contype="0" conaffinity="0" mass="0"/>
+              <geom name="pupil_left" type="cylinder" size="0.0026134406 0.0009046525" pos="0.011760482 0 0" quat="0.70710678 0 0.70710678 0" rgba="0.02 0.02 0.02 1" contype="0" conaffinity="0" mass="0"/>
+              <site name="gaze_left" pos="0.012062033 0 0" size="0.001"/>
+            </body>
+            <body name="eye_right" pos="0.070361861 -0.031662837 0.030155083">
+              <joint name="eye_right_yaw" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.78539816 0.78539816" damping="0.002" armature="1e-05"/>
+              <joint name="eye_right_pitch" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.78539816 0.52359878" damping="0.002" armature="1e-05"/>
+              <geom name="eyeball_right" type="sphere" size="0.012062033" rgba="0.96 0.96 0.94 1" contype="0" conaffinity="0" mass="0.007617"/>
+              <geom name="iris_right" type="cylinder" size="0.0058299828 0.00080413555" pos="0.011358415 0 0" quat="0.70710678 0 0.70710678 0" rgba="0.25 0.38 0.55 1" contype="0" conaffinity="0" mass="0"/>
+              <geom name="pupil_right" type="cylinder" size="0.0026134406 0.0009046525" pos="0.011760482 0 0" quat="0.70710678 0 0.70710678 0" rgba="0.02 0.02 0.02 1" contype="0" conaffinity="0" mass="0"/>
+              <site name="gaze_right" pos="0.012062033 0 0" size="0.001"/>
+            </body>
+            <body name="jaw" pos="0.0050258472 0 -0.03518093">
+              <joint name="jaw_open" type="hinge" pos="0 0 0" axis="0 1 0" range="0 0.52359878" damping="0.2" armature="0.001"/>
+              <geom name="mandible" type="capsule" size="0.012062033" fromto="0 0.045232625 -0.010051694 0.070361861 0 -0.060310167" rgba="0.85 0.67 0.55 1" mass="0.1016" contype="0" conaffinity="0"/>
+              <geom type="capsule" size="0.012062033" fromto="0 -0.045232625 -0.010051694 0.070361861 0 -0.060310167" rgba="0.85 0.67 0.55 1" mass="0.1016" contype="0" conaffinity="0"/>
+              <site name="chin" pos="0.075387708 0 -0.065336014" size="0.004"/>
+            </body>
+          </body>
+          <body name="shoulder_left" pos="0 0.030155083 0.23118897">
+            <joint name="shoulder_elev_left" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.17453293 0.52359878" damping="6" armature="0.02"/>
+            <joint name="shoulder_prot_left" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.34906585 0.34906585" damping="6" armature="0.02"/>
+            <geom type="capsule" size="0.03518" fromto="0 0 0 0 0.15077542 0" mass="0.9047" rgba="0.85 0.67 0.55 1"/>
+            <body name="upper_arm_left" pos="0 0.17087881 -0.020103389">
+              <joint name="shoulder_flex_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.87266463 2.9670597" damping="3" armature="0.02"/>
+              <joint name="shoulder_abd_left" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.34906585 2.7925268" damping="3" armature="0.02"/>
+              <joint name="shoulder_rot_left" type="hinge" pos="0 0 0" axis="0 0 1" range="-1.3962634 1.3962634" damping="3" armature="0.02"/>
+              <geom name="upper_arm_left" type="capsule" size="0.04523" fromto="0 0 -0.020103389 0 0 -0.25300115" mass="2.032" rgba="0.85 0.67 0.55 1"/>
+              <body name="forearm_left" pos="0 0 -0.28315623">
+                <joint name="elbow_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 2.6179939" damping="2" armature="0.02"/>
+                <joint name="pronation_left" type="hinge" pos="0 0 0" axis="0 0 1" range="-1.4835299 1.4835299" damping="1" armature="0.02"/>
+                <geom name="forearm_left" type="capsule" size="0.03719" fromto="0 0 -0.020103389 0 0 -0.25018667" mass="1.215" rgba="0.85 0.67 0.55 1"/>
+                <body name="hand_left" pos="0 0 -0.27029006">
+                  <joint name="wrist_flex_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-1.2217305 1.3962634" damping="0.2" armature="0.0005"/>
+                  <joint name="wrist_dev_left" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.52359878 0.34906585" damping="0.2" armature="0.0005"/>
+                  <geom name="palm_left" type="box" size="0.014072372 0.041211947 0.045232625" pos="0 -0.0010051694 -0.048248133" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                  <geom type="ellipsoid" size="0.016082711 0.022113728 0.022113728" pos="0.0060310167 0.019098219 -0.03518093" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                  <site name="palm_pad_left" type="box" pos="0.012062033 0 -0.050258472" size="0.0060310167 0.042217117 0.045232625" rgba="0.2 0.8 1 0.25" group="4"/>
+                  <body name="index_proximal_left" pos="0.0060310167 0.025129236 -0.092475589">
+                    <joint name="index_mcp_flex_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 1.5707963" damping="0.05" armature="0.0005"/>
+                    <joint name="index_mcp_abd_left" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.26179939 0.34906585" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.009046525" fromto="0 0 -0.004 0 0 -0.036206778" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="index_proximal_pad_left" type="box" pos="0.0045232625 0 -0.020103389" size="0.0067848937 0.0099511775 0.020103389" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="index_middle_left" pos="0 0 -0.040206778">
+                      <joint name="index_pip_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.8325957" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.008322803" fromto="0 0 -0.003 0 0 -0.020118897" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="index_middle_pad_left" type="box" pos="0.0041614015 0 -0.011559449" size="0.0062421022 0.0091550833 0.011559449" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="index_distal_left" pos="0 0 -0.023118897">
+                        <joint name="index_dip_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.4835299" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.0076895462" fromto="0 0 -0.003 0 0 -0.011408673" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <geom type="box" size="0.0013569787 0.005427915 0.0057294658" pos="-0.0067848937 0 -0.011840896" rgba="0.92 0.78 0.72 1" contype="0" conaffinity="0" mass="0"/>
+                        <site name="index_distal_pad_left" type="box" pos="0.0038447731 0 -0.0095491097" size="0.0057671597 0.0084585009 0.0095491097" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                  <body name="middle_proximal_left" pos="0.0060310167 0.0060310167 -0.095491097">
+                    <joint name="middle_mcp_flex_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 1.5707963" damping="0.05" armature="0.0005"/>
+                    <joint name="middle_mcp_abd_left" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.26179939 0.26179939" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.0092475589" fromto="0 0 -0.004 0 0 -0.041232625" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="middle_proximal_pad_left" type="box" pos="0.0046237794 0 -0.022616312" size="0.0069356692 0.010172315 0.022616312" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="middle_middle_left" pos="0 0 -0.045232625">
+                      <joint name="middle_pip_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.8325957" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.0085077542" fromto="0 0 -0.003 0 0 -0.024139575" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="middle_middle_pad_left" type="box" pos="0.0042538771 0 -0.013569787" size="0.0063808156 0.0093585296 0.013569787" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="middle_distal_left" pos="0 0 -0.027139575">
+                        <joint name="middle_dip_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.4835299" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.007860425" fromto="0 0 -0.003 0 0 -0.012242964" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <geom type="box" size="0.0013871338 0.0055485353 0.0060310167" pos="-0.0069356692 0 -0.012464101" rgba="0.92 0.78 0.72 1" contype="0" conaffinity="0" mass="0"/>
+                        <site name="middle_distal_pad_left" type="box" pos="0.0039302125 0 -0.010051694" size="0.0058953188 0.0086464675 0.010051694" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                  <body name="ring_proximal_left" pos="0.0060310167 -0.012062033 -0.091470419">
+                    <joint name="ring_mcp_flex_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 1.5707963" damping="0.05" armature="0.0005"/>
+                    <joint name="ring_mcp_abd_left" type="hinge" pos="0 0 0" axis="-1 0 0" range="-0.26179939 0.34906585" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.0087449742" fromto="0 0 -0.004 0 0 -0.038217117" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="ring_proximal_pad_left" type="box" pos="0.0043724871 0 -0.021108558" size="0.0065587306 0.0096194716 0.021108558" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="ring_middle_left" pos="0 0 -0.042217117">
+                      <joint name="ring_pip_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.8325957" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.0080453762" fromto="0 0 -0.003 0 0 -0.023134406" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="ring_middle_pad_left" type="box" pos="0.0040226881 0 -0.013067203" size="0.0060340322 0.0088499138 0.013067203" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="ring_distal_left" pos="0 0 -0.026134406">
+                        <joint name="ring_dip_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.4835299" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.007433228" fromto="0 0 -0.003 0 0 -0.011664991" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <geom type="box" size="0.0013117461 0.0052469845 0.0057294658" pos="-0.0065587306 0 -0.011840896" rgba="0.92 0.78 0.72 1" contype="0" conaffinity="0" mass="0"/>
+                        <site name="ring_distal_pad_left" type="box" pos="0.003716614 0 -0.0095491097" size="0.005574921 0.0081765508 0.0095491097" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                  <body name="little_proximal_left" pos="0.0040206778 -0.029149914 -0.083429064">
+                    <joint name="little_mcp_flex_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 1.5707963" damping="0.05" armature="0.0005"/>
+                    <joint name="little_mcp_abd_left" type="hinge" pos="0 0 0" axis="-1 0 0" range="-0.26179939 0.43633231" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.0078403217" fromto="0 0 -0.004 0 0 -0.029170592" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="little_proximal_pad_left" type="box" pos="0.0039201608 0 -0.016585296" size="0.0058802412 0.0086243538 0.016585296" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="little_middle_left" pos="0 0 -0.033170592">
+                      <joint name="little_pip_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.8325957" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.0072130959" fromto="0 0 -0.003 0 0 -0.016098219" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="little_middle_pad_left" type="box" pos="0.003606548 0 -0.0095491097" size="0.0054098219 0.0079344055 0.0095491097" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="little_distal_left" pos="0 0 -0.019098219">
+                        <joint name="little_dip_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.4835299" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.0066642734" fromto="0 0 -0.003 0 0 -0.010423607" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <geom type="box" size="0.0011760482 0.004704193 0.0051263642" pos="-0.0058802412 0 -0.010594486" rgba="0.92 0.78 0.72 1" contype="0" conaffinity="0" mass="0"/>
+                        <site name="little_distal_pad_left" type="box" pos="0.0033321367 0 -0.0085439403" size="0.0049982051 0.0073307007 0.0085439403" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                  <body name="thumb_metacarpal_left" pos="0.012062033 0.022113728 -0.022113728" quat="0.78123919 0.24632377 0.17247776 -0.54702957">
+                    <joint name="thumb_cmc_rot_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 0.87266463" damping="0.05" armature="0.0005"/>
+                    <joint name="thumb_cmc_abd_left" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.17453293 0.95993109" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.011609707" fromto="0 0 -0.006 0 0 -0.041232625" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="thumb_metacarpal_pad_left" type="box" pos="0.0052771396 0 -0.022616312" size="0.0084434233 0.011609707 0.022616312" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="thumb_proximal_left" pos="0 0 -0.045232625">
+                      <joint name="thumb_mcp_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 0.95993109" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.010554279" fromto="0 0 -0.003 0 0 -0.028160253" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="thumb_proximal_pad_left" type="box" pos="0.0052771396 0 -0.015580126" size="0.0084434233 0.011609707 0.015580126" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="thumb_distal_left" pos="0 0 -0.031160253">
+                        <joint name="thumb_ip_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.26179939 1.3962634" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.010026565" fromto="0 0 -0.003 0 0 -0.013569787" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <site name="thumb_distal_pad_left" type="box" pos="0.0052771396 0 -0.012062033" size="0.0084434233 0.011609707 0.012062033" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+          <body name="shoulder_right" pos="0 -0.030155083 0.23118897">
+            <joint name="shoulder_elev_right" type="hinge" pos="0 0 0" axis="-1 0 0" range="-0.17453293 0.52359878" damping="6" armature="0.02"/>
+            <joint name="shoulder_prot_right" type="hinge" pos="0 0 0" axis="0 0 -1" range="-0.34906585 0.34906585" damping="6" armature="0.02"/>
+            <geom type="capsule" size="0.03518" fromto="0 0 0 0 -0.15077542 0" mass="0.9047" rgba="0.85 0.67 0.55 1"/>
+            <body name="upper_arm_right" pos="0 -0.17087881 -0.020103389">
+              <joint name="shoulder_flex_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.87266463 2.9670597" damping="3" armature="0.02"/>
+              <joint name="shoulder_abd_right" type="hinge" pos="0 0 0" axis="-1 0 0" range="-0.34906585 2.7925268" damping="3" armature="0.02"/>
+              <joint name="shoulder_rot_right" type="hinge" pos="0 0 0" axis="0 0 -1" range="-1.3962634 1.3962634" damping="3" armature="0.02"/>
+              <geom name="upper_arm_right" type="capsule" size="0.04523" fromto="0 0 -0.020103389 0 0 -0.25300115" mass="2.032" rgba="0.85 0.67 0.55 1"/>
+              <body name="forearm_right" pos="0 0 -0.28315623">
+                <joint name="elbow_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 2.6179939" damping="2" armature="0.02"/>
+                <joint name="pronation_right" type="hinge" pos="0 0 0" axis="0 0 -1" range="-1.4835299 1.4835299" damping="1" armature="0.02"/>
+                <geom name="forearm_right" type="capsule" size="0.03719" fromto="0 0 -0.020103389 0 0 -0.25018667" mass="1.215" rgba="0.85 0.67 0.55 1"/>
+                <body name="hand_right" pos="0 0 -0.27029006">
+                  <joint name="wrist_flex_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-1.2217305 1.3962634" damping="0.2" armature="0.0005"/>
+                  <joint name="wrist_dev_right" type="hinge" pos="0 0 0" axis="-1 0 0" range="-0.52359878 0.34906585" damping="0.2" armature="0.0005"/>
+                  <geom name="palm_right" type="box" size="0.014072372 0.041211947 0.045232625" pos="0 0.0010051694 -0.048248133" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                  <geom type="ellipsoid" size="0.016082711 0.022113728 0.022113728" pos="0.0060310167 -0.019098219 -0.03518093" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                  <site name="palm_pad_right" type="box" pos="0.012062033 0 -0.050258472" size="0.0060310167 0.042217117 0.045232625" rgba="0.2 0.8 1 0.25" group="4"/>
+                  <body name="index_proximal_right" pos="0.0060310167 -0.025129236 -0.092475589">
+                    <joint name="index_mcp_flex_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 1.5707963" damping="0.05" armature="0.0005"/>
+                    <joint name="index_mcp_abd_right" type="hinge" pos="0 0 0" axis="-1 0 0" range="-0.26179939 0.34906585" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.009046525" fromto="0 0 -0.004 0 0 -0.036206778" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="index_proximal_pad_right" type="box" pos="0.0045232625 0 -0.020103389" size="0.0067848937 0.0099511775 0.020103389" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="index_middle_right" pos="0 0 -0.040206778">
+                      <joint name="index_pip_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.8325957" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.008322803" fromto="0 0 -0.003 0 0 -0.020118897" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="index_middle_pad_right" type="box" pos="0.0041614015 0 -0.011559449" size="0.0062421022 0.0091550833 0.011559449" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="index_distal_right" pos="0 0 -0.023118897">
+                        <joint name="index_dip_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.4835299" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.0076895462" fromto="0 0 -0.003 0 0 -0.011408673" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <geom type="box" size="0.0013569787 0.005427915 0.0057294658" pos="-0.0067848937 0 -0.011840896" rgba="0.92 0.78 0.72 1" contype="0" conaffinity="0" mass="0"/>
+                        <site name="index_distal_pad_right" type="box" pos="0.0038447731 0 -0.0095491097" size="0.0057671597 0.0084585009 0.0095491097" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                  <body name="middle_proximal_right" pos="0.0060310167 -0.0060310167 -0.095491097">
+                    <joint name="middle_mcp_flex_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 1.5707963" damping="0.05" armature="0.0005"/>
+                    <joint name="middle_mcp_abd_right" type="hinge" pos="0 0 0" axis="-1 0 0" range="-0.26179939 0.26179939" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.0092475589" fromto="0 0 -0.004 0 0 -0.041232625" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="middle_proximal_pad_right" type="box" pos="0.0046237794 0 -0.022616312" size="0.0069356692 0.010172315 0.022616312" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="middle_middle_right" pos="0 0 -0.045232625">
+                      <joint name="middle_pip_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.8325957" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.0085077542" fromto="0 0 -0.003 0 0 -0.024139575" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="middle_middle_pad_right" type="box" pos="0.0042538771 0 -0.013569787" size="0.0063808156 0.0093585296 0.013569787" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="middle_distal_right" pos="0 0 -0.027139575">
+                        <joint name="middle_dip_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.4835299" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.007860425" fromto="0 0 -0.003 0 0 -0.012242964" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <geom type="box" size="0.0013871338 0.0055485353 0.0060310167" pos="-0.0069356692 0 -0.012464101" rgba="0.92 0.78 0.72 1" contype="0" conaffinity="0" mass="0"/>
+                        <site name="middle_distal_pad_right" type="box" pos="0.0039302125 0 -0.010051694" size="0.0058953188 0.0086464675 0.010051694" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                  <body name="ring_proximal_right" pos="0.0060310167 0.012062033 -0.091470419">
+                    <joint name="ring_mcp_flex_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 1.5707963" damping="0.05" armature="0.0005"/>
+                    <joint name="ring_mcp_abd_right" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.26179939 0.34906585" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.0087449742" fromto="0 0 -0.004 0 0 -0.038217117" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="ring_proximal_pad_right" type="box" pos="0.0043724871 0 -0.021108558" size="0.0065587306 0.0096194716 0.021108558" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="ring_middle_right" pos="0 0 -0.042217117">
+                      <joint name="ring_pip_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.8325957" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.0080453762" fromto="0 0 -0.003 0 0 -0.023134406" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="ring_middle_pad_right" type="box" pos="0.0040226881 0 -0.013067203" size="0.0060340322 0.0088499138 0.013067203" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="ring_distal_right" pos="0 0 -0.026134406">
+                        <joint name="ring_dip_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.4835299" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.007433228" fromto="0 0 -0.003 0 0 -0.011664991" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <geom type="box" size="0.0013117461 0.0052469845 0.0057294658" pos="-0.0065587306 0 -0.011840896" rgba="0.92 0.78 0.72 1" contype="0" conaffinity="0" mass="0"/>
+                        <site name="ring_distal_pad_right" type="box" pos="0.003716614 0 -0.0095491097" size="0.005574921 0.0081765508 0.0095491097" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                  <body name="little_proximal_right" pos="0.0040206778 0.029149914 -0.083429064">
+                    <joint name="little_mcp_flex_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 1.5707963" damping="0.05" armature="0.0005"/>
+                    <joint name="little_mcp_abd_right" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.26179939 0.43633231" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.0078403217" fromto="0 0 -0.004 0 0 -0.029170592" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="little_proximal_pad_right" type="box" pos="0.0039201608 0 -0.016585296" size="0.0058802412 0.0086243538 0.016585296" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="little_middle_right" pos="0 0 -0.033170592">
+                      <joint name="little_pip_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.8325957" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.0072130959" fromto="0 0 -0.003 0 0 -0.016098219" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="little_middle_pad_right" type="box" pos="0.003606548 0 -0.0095491097" size="0.0054098219 0.0079344055 0.0095491097" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="little_distal_right" pos="0 0 -0.019098219">
+                        <joint name="little_dip_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 1.4835299" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.0066642734" fromto="0 0 -0.003 0 0 -0.010423607" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <geom type="box" size="0.0011760482 0.004704193 0.0051263642" pos="-0.0058802412 0 -0.010594486" rgba="0.92 0.78 0.72 1" contype="0" conaffinity="0" mass="0"/>
+                        <site name="little_distal_pad_right" type="box" pos="0.0033321367 0 -0.0085439403" size="0.0049982051 0.0073307007 0.0085439403" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                  <body name="thumb_metacarpal_right" pos="0.012062033 -0.022113728 -0.022113728" quat="0.78123919 -0.24632377 0.17247776 0.54702957">
+                    <joint name="thumb_cmc_rot_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 0.87266463" damping="0.05" armature="0.0005"/>
+                    <joint name="thumb_cmc_abd_right" type="hinge" pos="0 0 0" axis="-1 0 0" range="-0.17453293 0.95993109" damping="0.05" armature="0.0005"/>
+                    <geom type="capsule" size="0.011609707" fromto="0 0 -0.006 0 0 -0.041232625" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                    <site name="thumb_metacarpal_pad_right" type="box" pos="0.0052771396 0 -0.022616312" size="0.0084434233 0.011609707 0.022616312" rgba="0.2 0.8 1 0.25" group="4"/>
+                    <body name="thumb_proximal_right" pos="0 0 -0.045232625">
+                      <joint name="thumb_mcp_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 0.95993109" damping="0.05" armature="0.0005"/>
+                      <geom type="capsule" size="0.010554279" fromto="0 0 -0.003 0 0 -0.028160253" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                      <site name="thumb_proximal_pad_right" type="box" pos="0.0052771396 0 -0.015580126" size="0.0084434233 0.011609707 0.015580126" rgba="0.2 0.8 1 0.25" group="4"/>
+                      <body name="thumb_distal_right" pos="0 0 -0.031160253">
+                        <joint name="thumb_ip_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.26179939 1.3962634" damping="0.05" armature="0.0005"/>
+                        <geom type="capsule" size="0.010026565" fromto="0 0 -0.003 0 0 -0.013569787" rgba="0.85 0.67 0.55 1" density="1100" contype="2" conaffinity="1"/>
+                        <site name="thumb_distal_pad_right" type="box" pos="0.0052771396 0 -0.012062033" size="0.0084434233 0.011609707 0.012062033" rgba="0.2 0.8 1 0.25" group="4"/>
+                      </body>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="thigh_left" pos="0 0.088454911 0">
+        <joint name="hip_flex_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 2.0943951" damping="6" armature="0.02"/>
+        <joint name="hip_abd_left" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.43633231 0.78539816" damping="6" armature="0.02"/>
+        <joint name="hip_rot_left" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.6981317 0.6981317" damping="6" armature="0.02"/>
+        <geom name="thigh_left" type="capsule" size="0.07036" fromto="0 0 -0.040206778 0 0 -0.37412407" mass="10.62" rgba="0.85 0.67 0.55 1"/>
+        <body name="shank_left" pos="0 0 -0.42438254">
+          <joint name="knee_left" type="hinge" pos="0 0 0" axis="0 1 0" range="-0.087266463 2.6179939" damping="6" armature="0.02"/>
+          <geom name="shank_left" type="capsule" size="0.05026" fromto="0 0 -0.030155083 0 0 -0.37593337" mass="3.248" rgba="0.85 0.67 0.55 1"/>
+          <body name="talus_left" pos="0 0 -0.43624354">
+            <joint name="ankle_flex_left" type="hinge" pos="0 0 0" axis="0.13733413 -0.98095804 0.13733413" range="-0.87266463 0.43633231" damping="1" armature="0.01"/>
+            <geom type="sphere" size="0.022113728" rgba="0.85 0.67 0.55 1" mass="0.1016" contype="0" conaffinity="0"/>
+            <body name="hindfoot_left" pos="-0.012062033 0 -0.028144744">
+              <joint name="subtalar_left" type="hinge" pos="0 0 0" axis="-0.68406842 0.29036982 -0.66913061" range="-0.17453293 0.43633231" damping="1" armature="0.005"/>
+              <geom name="heel_left" type="capsule" size="0.024124067" fromto="-0.03518093 -0.0080413555 -0.023118897 -0.03518093 0.0080413555 -0.023118897" rgba="0.85 0.67 0.55 1" mass="0.3047" friction="1.0 0.005 0.0001"/>
+              <geom type="box" size="0.030155083 0.022113728 0.022113728" pos="0 0 0" rgba="0.85 0.67 0.55 1" mass="0.08125" contype="0" conaffinity="0"/>
+              <site name="heel_zone_left" type="box" pos="-0.03518093 0 -0.03518093" size="0.040206778 0.030155083 0.020103389" rgba="0.2 0.8 1 0.25" group="4"/>
+              <body name="midfoot_left" pos="0.040206778 0 0.0040206778">
+                <joint name="midtarsal_left" type="hinge" pos="0 0 0" axis="0.098413566 -0.98413566 0.14762035" range="-0.13962634 0.13962634" damping="3" armature="0.002" stiffness="816.7" solreflimit="0.005 1"/>
+                <geom name="midfoot_dorsum_left" type="box" size="0.026134406 0.030155083 0.01809305" pos="0.020103389 0.0030155083 -0.016082711" rgba="0.85 0.67 0.55 1" mass="0.2539" contype="0" conaffinity="0"/>
+                <geom name="midfoot_lateral_left" type="capsule" size="0.0080413555" fromto="0 0.022113728 -0.037191269 0.040206778 0.026134406 -0.037191269" rgba="0.85 0.67 0.55 1" mass="0"/>
+                <body name="forefoot_left" pos="0.045232625 0 0">
+                  <joint name="tmt_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 0.087266463" damping="3" armature="0.002" stiffness="816.7" solreflimit="0.005 1"/>
+                  <geom name="forefoot_dorsum_left" type="box" size="0.03518093 0.034175761 0.014072372" pos="0.030155083 0.0020103389 -0.021108558" rgba="0.85 0.67 0.55 1" mass="0.2539" contype="0" conaffinity="0"/>
+                  <geom name="ball_left" type="capsule" size="0.011056864" fromto="0.065336014 -0.026134406 -0.040206778 0.03518093 0.034175761 -0.040206778" rgba="0.85 0.67 0.55 1" mass="0.05078" friction="1.0 0.005 0.0001"/>
+                  <site name="forefoot_zone_left" type="box" pos="0.050258472 0.0040206778 -0.042217117" size="0.030155083 0.045232625 0.016082711" rgba="0.2 0.8 1 0.25" group="4" quat="0.97324899 0 0 0.22975292"/>
+                  <body name="toes_left" pos="0.050258472 0.0040206778 0">
+                    <joint name="mtp_left" type="hinge" pos="0 0 0" axis="0.4472136 -0.89442719 0" range="-0.61086524 1.2217305" damping="0.3" armature="0.001"/>
+                    <geom name="toes_pad_left" type="capsule" size="0.010051694" fromto="0.045232625 -0.030155083 -0.041211947 0.020103389 0.030155083 -0.041211947" rgba="0.85 0.67 0.55 1" mass="0.06094" friction="1.0 0.005 0.0001"/>
+                    <site name="toes_zone_left" type="box" pos="0.033170592 0 -0.045232625" size="0.022113728 0.040206778 0.012062033" rgba="0.2 0.8 1 0.25" group="4"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="thigh_right" pos="0 -0.088454911 0">
+        <joint name="hip_flex_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.34906585 2.0943951" damping="6" armature="0.02"/>
+        <joint name="hip_abd_right" type="hinge" pos="0 0 0" axis="-1 0 0" range="-0.43633231 0.78539816" damping="6" armature="0.02"/>
+        <joint name="hip_rot_right" type="hinge" pos="0 0 0" axis="0 0 -1" range="-0.6981317 0.6981317" damping="6" armature="0.02"/>
+        <geom name="thigh_right" type="capsule" size="0.07036" fromto="0 0 -0.040206778 0 0 -0.37412407" mass="10.62" rgba="0.85 0.67 0.55 1"/>
+        <body name="shank_right" pos="0 0 -0.42438254">
+          <joint name="knee_right" type="hinge" pos="0 0 0" axis="0 1 0" range="-0.087266463 2.6179939" damping="6" armature="0.02"/>
+          <geom name="shank_right" type="capsule" size="0.05026" fromto="0 0 -0.030155083 0 0 -0.37593337" mass="3.248" rgba="0.85 0.67 0.55 1"/>
+          <body name="talus_right" pos="0 0 -0.43624354">
+            <joint name="ankle_flex_right" type="hinge" pos="0 0 0" axis="-0.13733413 -0.98095804 -0.13733413" range="-0.87266463 0.43633231" damping="1" armature="0.01"/>
+            <geom type="sphere" size="0.022113728" rgba="0.85 0.67 0.55 1" mass="0.1016" contype="0" conaffinity="0"/>
+            <body name="hindfoot_right" pos="-0.012062033 0 -0.028144744">
+              <joint name="subtalar_right" type="hinge" pos="0 0 0" axis="0.68406842 0.29036982 0.66913061" range="-0.17453293 0.43633231" damping="1" armature="0.005"/>
+              <geom name="heel_right" type="capsule" size="0.024124067" fromto="-0.03518093 0.0080413555 -0.023118897 -0.03518093 -0.0080413555 -0.023118897" rgba="0.85 0.67 0.55 1" mass="0.3047" friction="1.0 0.005 0.0001"/>
+              <geom type="box" size="0.030155083 0.022113728 0.022113728" pos="0 0 0" rgba="0.85 0.67 0.55 1" mass="0.08125" contype="0" conaffinity="0"/>
+              <site name="heel_zone_right" type="box" pos="-0.03518093 0 -0.03518093" size="0.040206778 0.030155083 0.020103389" rgba="0.2 0.8 1 0.25" group="4"/>
+              <body name="midfoot_right" pos="0.040206778 0 0.0040206778">
+                <joint name="midtarsal_right" type="hinge" pos="0 0 0" axis="-0.098413566 -0.98413566 -0.14762035" range="-0.13962634 0.13962634" damping="3" armature="0.002" stiffness="816.7" solreflimit="0.005 1"/>
+                <geom name="midfoot_dorsum_right" type="box" size="0.026134406 0.030155083 0.01809305" pos="0.020103389 -0.0030155083 -0.016082711" rgba="0.85 0.67 0.55 1" mass="0.2539" contype="0" conaffinity="0"/>
+                <geom name="midfoot_lateral_right" type="capsule" size="0.0080413555" fromto="0 -0.022113728 -0.037191269 0.040206778 -0.026134406 -0.037191269" rgba="0.85 0.67 0.55 1" mass="0"/>
+                <body name="forefoot_right" pos="0.045232625 0 0">
+                  <joint name="tmt_right" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 0.087266463" damping="3" armature="0.002" stiffness="816.7" solreflimit="0.005 1"/>
+                  <geom name="forefoot_dorsum_right" type="box" size="0.03518093 0.034175761 0.014072372" pos="0.030155083 -0.0020103389 -0.021108558" rgba="0.85 0.67 0.55 1" mass="0.2539" contype="0" conaffinity="0"/>
+                  <geom name="ball_right" type="capsule" size="0.011056864" fromto="0.065336014 0.026134406 -0.040206778 0.03518093 -0.034175761 -0.040206778" rgba="0.85 0.67 0.55 1" mass="0.05078" friction="1.0 0.005 0.0001"/>
+                  <site name="forefoot_zone_right" type="box" pos="0.050258472 -0.0040206778 -0.042217117" size="0.030155083 0.045232625 0.016082711" rgba="0.2 0.8 1 0.25" group="4" quat="0.97324899 0 0 -0.22975292"/>
+                  <body name="toes_right" pos="0.050258472 -0.0040206778 0">
+                    <joint name="mtp_right" type="hinge" pos="0 0 0" axis="-0.4472136 -0.89442719 0" range="-0.61086524 1.2217305" damping="0.3" armature="0.001"/>
+                    <geom name="toes_pad_right" type="capsule" size="0.010051694" fromto="0.045232625 0.030155083 -0.041211947 0.020103389 -0.030155083 -0.041211947" rgba="0.85 0.67 0.55 1" mass="0.06094" friction="1.0 0.005 0.0001"/>
+                    <site name="toes_zone_right" type="box" pos="0.033170592 0 -0.045232625" size="0.022113728 0.040206778 0.012062033" rgba="0.2 0.8 1 0.25" group="4"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <contact>
+    <exclude body1="chest" body2="upper_arm_left"/>
+    <exclude body1="chest" body2="upper_arm_right"/>
+    <exclude body1="abdomen" body2="thigh_left"/>
+    <exclude body1="abdomen" body2="thigh_right"/>
+    <exclude body1="abdomen" body2="upper_arm_left"/>
+    <exclude body1="abdomen" body2="upper_arm_right"/>
+    <exclude body1="pelvis" body2="forearm_left"/>
+    <exclude body1="pelvis" body2="forearm_right"/>
+    <exclude body1="thigh_left" body2="thigh_right"/>
+  </contact>
+  <actuator>
+    <position name="pos_eye_left_yaw" joint="eye_left_yaw" kp="0.05" ctrlrange="-0.78539816 0.78539816"/>
+    <position name="pos_eye_left_pitch" joint="eye_left_pitch" kp="0.05" ctrlrange="-0.78539816 0.52359878"/>
+    <position name="pos_eye_right_yaw" joint="eye_right_yaw" kp="0.05" ctrlrange="-0.78539816 0.78539816"/>
+    <position name="pos_eye_right_pitch" joint="eye_right_pitch" kp="0.05" ctrlrange="-0.78539816 0.52359878"/>
+    <position name="pos_jaw_open" joint="jaw_open" kp="3" ctrlrange="0 0.52359878"/>
+    <position name="pos_neck_pitch" joint="neck_pitch" kp="30" ctrlrange="-0.6981317 0.87266463"/>
+    <position name="pos_neck_yaw" joint="neck_yaw" kp="30" ctrlrange="-1.2217305 1.2217305"/>
+    <position name="pos_neck_roll" joint="neck_roll" kp="30" ctrlrange="-0.61086524 0.61086524"/>
+    <position name="pos_index_mcp_flex_left" joint="index_mcp_flex_left" kp="0.6" ctrlrange="-0.34906585 1.5707963"/>
+    <position name="pos_index_mcp_abd_left" joint="index_mcp_abd_left" kp="0.4" ctrlrange="-0.26179939 0.34906585"/>
+    <position name="pos_index_pip_left" joint="index_pip_left" kp="0.6" ctrlrange="-0.087266463 1.8325957"/>
+    <position name="pos_index_dip_left" joint="index_dip_left" kp="0.6" ctrlrange="-0.087266463 1.4835299"/>
+    <position name="pos_middle_mcp_flex_left" joint="middle_mcp_flex_left" kp="0.6" ctrlrange="-0.34906585 1.5707963"/>
+    <position name="pos_middle_mcp_abd_left" joint="middle_mcp_abd_left" kp="0.4" ctrlrange="-0.26179939 0.26179939"/>
+    <position name="pos_middle_pip_left" joint="middle_pip_left" kp="0.6" ctrlrange="-0.087266463 1.8325957"/>
+    <position name="pos_middle_dip_left" joint="middle_dip_left" kp="0.6" ctrlrange="-0.087266463 1.4835299"/>
+    <position name="pos_ring_mcp_flex_left" joint="ring_mcp_flex_left" kp="0.6" ctrlrange="-0.34906585 1.5707963"/>
+    <position name="pos_ring_mcp_abd_left" joint="ring_mcp_abd_left" kp="0.4" ctrlrange="-0.26179939 0.34906585"/>
+    <position name="pos_ring_pip_left" joint="ring_pip_left" kp="0.6" ctrlrange="-0.087266463 1.8325957"/>
+    <position name="pos_ring_dip_left" joint="ring_dip_left" kp="0.6" ctrlrange="-0.087266463 1.4835299"/>
+    <position name="pos_little_mcp_flex_left" joint="little_mcp_flex_left" kp="0.6" ctrlrange="-0.34906585 1.5707963"/>
+    <position name="pos_little_mcp_abd_left" joint="little_mcp_abd_left" kp="0.4" ctrlrange="-0.26179939 0.43633231"/>
+    <position name="pos_little_pip_left" joint="little_pip_left" kp="0.6" ctrlrange="-0.087266463 1.8325957"/>
+    <position name="pos_little_dip_left" joint="little_dip_left" kp="0.6" ctrlrange="-0.087266463 1.4835299"/>
+    <position name="pos_thumb_cmc_rot_left" joint="thumb_cmc_rot_left" kp="1.0" ctrlrange="-0.34906585 0.87266463"/>
+    <position name="pos_thumb_cmc_abd_left" joint="thumb_cmc_abd_left" kp="1.0" ctrlrange="-0.17453293 0.95993109"/>
+    <position name="pos_thumb_mcp_left" joint="thumb_mcp_left" kp="0.6" ctrlrange="-0.17453293 0.95993109"/>
+    <position name="pos_thumb_ip_left" joint="thumb_ip_left" kp="0.4" ctrlrange="-0.26179939 1.3962634"/>
+    <position name="pos_wrist_flex_left" joint="wrist_flex_left" kp="8" ctrlrange="-1.2217305 1.3962634"/>
+    <position name="pos_wrist_dev_left" joint="wrist_dev_left" kp="8" ctrlrange="-0.52359878 0.34906585"/>
+    <position name="pos_mtp_left" joint="mtp_left" kp="8.041" ctrlrange="-0.61086524 1.2217305"/>
+    <position name="pos_ankle_flex_left" joint="ankle_flex_left" kp="300" ctrlrange="-0.87266463 0.43633231"/>
+    <position name="pos_subtalar_left" joint="subtalar_left" kp="150" ctrlrange="-0.17453293 0.43633231"/>
+    <position name="pos_shoulder_elev_left" joint="shoulder_elev_left" kp="150" ctrlrange="-0.17453293 0.52359878"/>
+    <position name="pos_shoulder_prot_left" joint="shoulder_prot_left" kp="150" ctrlrange="-0.34906585 0.34906585"/>
+    <position name="pos_shoulder_flex_left" joint="shoulder_flex_left" kp="150" ctrlrange="-0.87266463 2.9670597"/>
+    <position name="pos_shoulder_abd_left" joint="shoulder_abd_left" kp="150" ctrlrange="-0.34906585 2.7925268"/>
+    <position name="pos_shoulder_rot_left" joint="shoulder_rot_left" kp="80" ctrlrange="-1.3962634 1.3962634"/>
+    <position name="pos_elbow_left" joint="elbow_left" kp="80" ctrlrange="-0.087266463 2.6179939"/>
+    <position name="pos_pronation_left" joint="pronation_left" kp="20" ctrlrange="-1.4835299 1.4835299"/>
+    <position name="pos_hip_flex_left" joint="hip_flex_left" kp="500" ctrlrange="-0.34906585 2.0943951"/>
+    <position name="pos_hip_abd_left" joint="hip_abd_left" kp="500" ctrlrange="-0.43633231 0.78539816"/>
+    <position name="pos_hip_rot_left" joint="hip_rot_left" kp="200" ctrlrange="-0.6981317 0.6981317"/>
+    <position name="pos_knee_left" joint="knee_left" kp="500" ctrlrange="-0.087266463 2.6179939"/>
+    <position name="pos_index_mcp_flex_right" joint="index_mcp_flex_right" kp="0.6" ctrlrange="-0.34906585 1.5707963"/>
+    <position name="pos_index_mcp_abd_right" joint="index_mcp_abd_right" kp="0.4" ctrlrange="-0.26179939 0.34906585"/>
+    <position name="pos_index_pip_right" joint="index_pip_right" kp="0.6" ctrlrange="-0.087266463 1.8325957"/>
+    <position name="pos_index_dip_right" joint="index_dip_right" kp="0.6" ctrlrange="-0.087266463 1.4835299"/>
+    <position name="pos_middle_mcp_flex_right" joint="middle_mcp_flex_right" kp="0.6" ctrlrange="-0.34906585 1.5707963"/>
+    <position name="pos_middle_mcp_abd_right" joint="middle_mcp_abd_right" kp="0.4" ctrlrange="-0.26179939 0.26179939"/>
+    <position name="pos_middle_pip_right" joint="middle_pip_right" kp="0.6" ctrlrange="-0.087266463 1.8325957"/>
+    <position name="pos_middle_dip_right" joint="middle_dip_right" kp="0.6" ctrlrange="-0.087266463 1.4835299"/>
+    <position name="pos_ring_mcp_flex_right" joint="ring_mcp_flex_right" kp="0.6" ctrlrange="-0.34906585 1.5707963"/>
+    <position name="pos_ring_mcp_abd_right" joint="ring_mcp_abd_right" kp="0.4" ctrlrange="-0.26179939 0.34906585"/>
+    <position name="pos_ring_pip_right" joint="ring_pip_right" kp="0.6" ctrlrange="-0.087266463 1.8325957"/>
+    <position name="pos_ring_dip_right" joint="ring_dip_right" kp="0.6" ctrlrange="-0.087266463 1.4835299"/>
+    <position name="pos_little_mcp_flex_right" joint="little_mcp_flex_right" kp="0.6" ctrlrange="-0.34906585 1.5707963"/>
+    <position name="pos_little_mcp_abd_right" joint="little_mcp_abd_right" kp="0.4" ctrlrange="-0.26179939 0.43633231"/>
+    <position name="pos_little_pip_right" joint="little_pip_right" kp="0.6" ctrlrange="-0.087266463 1.8325957"/>
+    <position name="pos_little_dip_right" joint="little_dip_right" kp="0.6" ctrlrange="-0.087266463 1.4835299"/>
+    <position name="pos_thumb_cmc_rot_right" joint="thumb_cmc_rot_right" kp="1.0" ctrlrange="-0.34906585 0.87266463"/>
+    <position name="pos_thumb_cmc_abd_right" joint="thumb_cmc_abd_right" kp="1.0" ctrlrange="-0.17453293 0.95993109"/>
+    <position name="pos_thumb_mcp_right" joint="thumb_mcp_right" kp="0.6" ctrlrange="-0.17453293 0.95993109"/>
+    <position name="pos_thumb_ip_right" joint="thumb_ip_right" kp="0.4" ctrlrange="-0.26179939 1.3962634"/>
+    <position name="pos_wrist_flex_right" joint="wrist_flex_right" kp="8" ctrlrange="-1.2217305 1.3962634"/>
+    <position name="pos_wrist_dev_right" joint="wrist_dev_right" kp="8" ctrlrange="-0.52359878 0.34906585"/>
+    <position name="pos_mtp_right" joint="mtp_right" kp="8.041" ctrlrange="-0.61086524 1.2217305"/>
+    <position name="pos_ankle_flex_right" joint="ankle_flex_right" kp="300" ctrlrange="-0.87266463 0.43633231"/>
+    <position name="pos_subtalar_right" joint="subtalar_right" kp="150" ctrlrange="-0.17453293 0.43633231"/>
+    <position name="pos_shoulder_elev_right" joint="shoulder_elev_right" kp="150" ctrlrange="-0.17453293 0.52359878"/>
+    <position name="pos_shoulder_prot_right" joint="shoulder_prot_right" kp="150" ctrlrange="-0.34906585 0.34906585"/>
+    <position name="pos_shoulder_flex_right" joint="shoulder_flex_right" kp="150" ctrlrange="-0.87266463 2.9670597"/>
+    <position name="pos_shoulder_abd_right" joint="shoulder_abd_right" kp="150" ctrlrange="-0.34906585 2.7925268"/>
+    <position name="pos_shoulder_rot_right" joint="shoulder_rot_right" kp="80" ctrlrange="-1.3962634 1.3962634"/>
+    <position name="pos_elbow_right" joint="elbow_right" kp="80" ctrlrange="-0.087266463 2.6179939"/>
+    <position name="pos_pronation_right" joint="pronation_right" kp="20" ctrlrange="-1.4835299 1.4835299"/>
+    <position name="pos_hip_flex_right" joint="hip_flex_right" kp="500" ctrlrange="-0.34906585 2.0943951"/>
+    <position name="pos_hip_abd_right" joint="hip_abd_right" kp="500" ctrlrange="-0.43633231 0.78539816"/>
+    <position name="pos_hip_rot_right" joint="hip_rot_right" kp="200" ctrlrange="-0.6981317 0.6981317"/>
+    <position name="pos_knee_right" joint="knee_right" kp="500" ctrlrange="-0.087266463 2.6179939"/>
+    <position name="pos_lumbar_flex" joint="lumbar_flex" kp="600" ctrlrange="-0.43633231 1.0471976"/>
+    <position name="pos_lumbar_lat" joint="lumbar_lat" kp="600" ctrlrange="-0.43633231 0.43633231"/>
+    <position name="pos_lumbar_rot" joint="lumbar_rot" kp="400" ctrlrange="-0.34906585 0.34906585"/>
+    <position name="pos_thoracic_flex" joint="thoracic_flex" kp="500" ctrlrange="-0.34906585 0.6981317"/>
+    <position name="pos_thoracic_lat" joint="thoracic_lat" kp="500" ctrlrange="-0.34906585 0.34906585"/>
+    <position name="pos_thoracic_rot" joint="thoracic_rot" kp="300" ctrlrange="-0.52359878 0.52359878"/>
+  </actuator>
+  <sensor>
+    <jointpos name="jointpos_eye_left_yaw" joint="eye_left_yaw"/>
+    <jointpos name="jointpos_eye_left_pitch" joint="eye_left_pitch"/>
+    <framexaxis name="gaze_dir_left" objtype="site" objname="gaze_left"/>
+    <jointpos name="jointpos_eye_right_yaw" joint="eye_right_yaw"/>
+    <jointpos name="jointpos_eye_right_pitch" joint="eye_right_pitch"/>
+    <framexaxis name="gaze_dir_right" objtype="site" objname="gaze_right"/>
+    <jointpos name="jointpos_jaw_open" joint="jaw_open"/>
+    <gyro name="head_gyro" site="head_imu"/>
+    <accelerometer name="head_accel" site="head_imu"/>
+    <touch name="touch_palm_pad_left" site="palm_pad_left"/>
+    <touch name="touch_index_proximal_pad_left" site="index_proximal_pad_left"/>
+    <touch name="touch_index_middle_pad_left" site="index_middle_pad_left"/>
+    <touch name="touch_index_distal_pad_left" site="index_distal_pad_left"/>
+    <jointpos name="jointpos_index_mcp_flex_left" joint="index_mcp_flex_left"/>
+    <jointpos name="jointpos_index_mcp_abd_left" joint="index_mcp_abd_left"/>
+    <jointpos name="jointpos_index_pip_left" joint="index_pip_left"/>
+    <jointpos name="jointpos_index_dip_left" joint="index_dip_left"/>
+    <touch name="touch_middle_proximal_pad_left" site="middle_proximal_pad_left"/>
+    <touch name="touch_middle_middle_pad_left" site="middle_middle_pad_left"/>
+    <touch name="touch_middle_distal_pad_left" site="middle_distal_pad_left"/>
+    <jointpos name="jointpos_middle_mcp_flex_left" joint="middle_mcp_flex_left"/>
+    <jointpos name="jointpos_middle_mcp_abd_left" joint="middle_mcp_abd_left"/>
+    <jointpos name="jointpos_middle_pip_left" joint="middle_pip_left"/>
+    <jointpos name="jointpos_middle_dip_left" joint="middle_dip_left"/>
+    <touch name="touch_ring_proximal_pad_left" site="ring_proximal_pad_left"/>
+    <touch name="touch_ring_middle_pad_left" site="ring_middle_pad_left"/>
+    <touch name="touch_ring_distal_pad_left" site="ring_distal_pad_left"/>
+    <jointpos name="jointpos_ring_mcp_flex_left" joint="ring_mcp_flex_left"/>
+    <jointpos name="jointpos_ring_mcp_abd_left" joint="ring_mcp_abd_left"/>
+    <jointpos name="jointpos_ring_pip_left" joint="ring_pip_left"/>
+    <jointpos name="jointpos_ring_dip_left" joint="ring_dip_left"/>
+    <touch name="touch_little_proximal_pad_left" site="little_proximal_pad_left"/>
+    <touch name="touch_little_middle_pad_left" site="little_middle_pad_left"/>
+    <touch name="touch_little_distal_pad_left" site="little_distal_pad_left"/>
+    <jointpos name="jointpos_little_mcp_flex_left" joint="little_mcp_flex_left"/>
+    <jointpos name="jointpos_little_mcp_abd_left" joint="little_mcp_abd_left"/>
+    <jointpos name="jointpos_little_pip_left" joint="little_pip_left"/>
+    <jointpos name="jointpos_little_dip_left" joint="little_dip_left"/>
+    <touch name="touch_thumb_metacarpal_pad_left" site="thumb_metacarpal_pad_left"/>
+    <touch name="touch_thumb_proximal_pad_left" site="thumb_proximal_pad_left"/>
+    <touch name="touch_thumb_distal_pad_left" site="thumb_distal_pad_left"/>
+    <jointpos name="jointpos_thumb_cmc_rot_left" joint="thumb_cmc_rot_left"/>
+    <jointpos name="jointpos_thumb_cmc_abd_left" joint="thumb_cmc_abd_left"/>
+    <jointpos name="jointpos_thumb_mcp_left" joint="thumb_mcp_left"/>
+    <jointpos name="jointpos_thumb_ip_left" joint="thumb_ip_left"/>
+    <touch name="touch_heel_zone_left" site="heel_zone_left"/>
+    <touch name="touch_forefoot_zone_left" site="forefoot_zone_left"/>
+    <touch name="touch_toes_zone_left" site="toes_zone_left"/>
+    <jointpos name="jointpos_mtp_left" joint="mtp_left"/>
+    <jointpos name="jointpos_ankle_flex_left" joint="ankle_flex_left"/>
+    <jointpos name="jointpos_subtalar_left" joint="subtalar_left"/>
+    <jointpos name="jointpos_midtarsal_left" joint="midtarsal_left"/>
+    <jointpos name="jointpos_tmt_left" joint="tmt_left"/>
+    <jointpos name="jointpos_shoulder_flex_left" joint="shoulder_flex_left"/>
+    <jointpos name="jointpos_shoulder_abd_left" joint="shoulder_abd_left"/>
+    <jointpos name="jointpos_elbow_left" joint="elbow_left"/>
+    <jointpos name="jointpos_hip_flex_left" joint="hip_flex_left"/>
+    <jointpos name="jointpos_knee_left" joint="knee_left"/>
+    <touch name="touch_palm_pad_right" site="palm_pad_right"/>
+    <touch name="touch_index_proximal_pad_right" site="index_proximal_pad_right"/>
+    <touch name="touch_index_middle_pad_right" site="index_middle_pad_right"/>
+    <touch name="touch_index_distal_pad_right" site="index_distal_pad_right"/>
+    <jointpos name="jointpos_index_mcp_flex_right" joint="index_mcp_flex_right"/>
+    <jointpos name="jointpos_index_mcp_abd_right" joint="index_mcp_abd_right"/>
+    <jointpos name="jointpos_index_pip_right" joint="index_pip_right"/>
+    <jointpos name="jointpos_index_dip_right" joint="index_dip_right"/>
+    <touch name="touch_middle_proximal_pad_right" site="middle_proximal_pad_right"/>
+    <touch name="touch_middle_middle_pad_right" site="middle_middle_pad_right"/>
+    <touch name="touch_middle_distal_pad_right" site="middle_distal_pad_right"/>
+    <jointpos name="jointpos_middle_mcp_flex_right" joint="middle_mcp_flex_right"/>
+    <jointpos name="jointpos_middle_mcp_abd_right" joint="middle_mcp_abd_right"/>
+    <jointpos name="jointpos_middle_pip_right" joint="middle_pip_right"/>
+    <jointpos name="jointpos_middle_dip_right" joint="middle_dip_right"/>
+    <touch name="touch_ring_proximal_pad_right" site="ring_proximal_pad_right"/>
+    <touch name="touch_ring_middle_pad_right" site="ring_middle_pad_right"/>
+    <touch name="touch_ring_distal_pad_right" site="ring_distal_pad_right"/>
+    <jointpos name="jointpos_ring_mcp_flex_right" joint="ring_mcp_flex_right"/>
+    <jointpos name="jointpos_ring_mcp_abd_right" joint="ring_mcp_abd_right"/>
+    <jointpos name="jointpos_ring_pip_right" joint="ring_pip_right"/>
+    <jointpos name="jointpos_ring_dip_right" joint="ring_dip_right"/>
+    <touch name="touch_little_proximal_pad_right" site="little_proximal_pad_right"/>
+    <touch name="touch_little_middle_pad_right" site="little_middle_pad_right"/>
+    <touch name="touch_little_distal_pad_right" site="little_distal_pad_right"/>
+    <jointpos name="jointpos_little_mcp_flex_right" joint="little_mcp_flex_right"/>
+    <jointpos name="jointpos_little_mcp_abd_right" joint="little_mcp_abd_right"/>
+    <jointpos name="jointpos_little_pip_right" joint="little_pip_right"/>
+    <jointpos name="jointpos_little_dip_right" joint="little_dip_right"/>
+    <touch name="touch_thumb_metacarpal_pad_right" site="thumb_metacarpal_pad_right"/>
+    <touch name="touch_thumb_proximal_pad_right" site="thumb_proximal_pad_right"/>
+    <touch name="touch_thumb_distal_pad_right" site="thumb_distal_pad_right"/>
+    <jointpos name="jointpos_thumb_cmc_rot_right" joint="thumb_cmc_rot_right"/>
+    <jointpos name="jointpos_thumb_cmc_abd_right" joint="thumb_cmc_abd_right"/>
+    <jointpos name="jointpos_thumb_mcp_right" joint="thumb_mcp_right"/>
+    <jointpos name="jointpos_thumb_ip_right" joint="thumb_ip_right"/>
+    <touch name="touch_heel_zone_right" site="heel_zone_right"/>
+    <touch name="touch_forefoot_zone_right" site="forefoot_zone_right"/>
+    <touch name="touch_toes_zone_right" site="toes_zone_right"/>
+    <jointpos name="jointpos_mtp_right" joint="mtp_right"/>
+    <jointpos name="jointpos_ankle_flex_right" joint="ankle_flex_right"/>
+    <jointpos name="jointpos_subtalar_right" joint="subtalar_right"/>
+    <jointpos name="jointpos_midtarsal_right" joint="midtarsal_right"/>
+    <jointpos name="jointpos_tmt_right" joint="tmt_right"/>
+    <jointpos name="jointpos_shoulder_flex_right" joint="shoulder_flex_right"/>
+    <jointpos name="jointpos_shoulder_abd_right" joint="shoulder_abd_right"/>
+    <jointpos name="jointpos_elbow_right" joint="elbow_right"/>
+    <jointpos name="jointpos_hip_flex_right" joint="hip_flex_right"/>
+    <jointpos name="jointpos_knee_right" joint="knee_right"/>
+    <gyro name="pelvis_imu_gyro" site="pelvis_imu"/>
+    <accelerometer name="pelvis_imu_accel" site="pelvis_imu"/>
+    <gyro name="chest_imu_gyro" site="chest_imu"/>
+    <accelerometer name="chest_imu_accel" site="chest_imu"/>
+    <framequat name="pelvis_orientation" objtype="site" objname="pelvis_imu"/>
+  </sensor>
+  <keyframe>
+    <key name="stand" qpos="0 0 0.93801379 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>

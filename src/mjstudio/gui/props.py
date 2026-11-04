@@ -66,6 +66,18 @@ class Spin(QDoubleSpinBox):
             ev.ignore()
 
 
+def _drop_layout(lay) -> None:
+    while lay.count():
+        it = lay.takeAt(0)
+        w = it.widget()
+        if w is not None:
+            w.hide()
+            w.setParent(None)
+            w.deleteLater()
+        elif it.layout() is not None:
+            _drop_layout(it.layout())
+
+
 class AttrRow:
     """Label + editor + reset button for one attribute."""
 
@@ -247,8 +259,13 @@ class PropsPanel(QScrollArea):
     def _clear(self) -> None:
         while self.lay.count():
             it = self.lay.takeAt(0)
-            if it.widget() is not None:
-                it.widget().deleteLater()
+            w = it.widget()
+            if w is not None:
+                w.hide()              # remove from view now; deleteLater only runs after the event loop
+                w.setParent(None)
+                w.deleteLater()
+            elif it.layout() is not None:
+                _drop_layout(it.layout())
         self.rows = []
         self.tf = None
 

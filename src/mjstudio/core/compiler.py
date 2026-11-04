@@ -240,3 +240,24 @@ def validate_steps(model: mujoco.MjModel, nsteps: int = 200) -> list[str]:
     if vmax > 1e3:
         issues.append(f"very large joint velocity after {nsteps} steps: {vmax:.3g}")
     return issues
+
+
+_FEATURES: dict[str, bool] = {}
+
+
+def supports(feature: str) -> bool:
+    """Feature detection against the installed MuJoCo (cached): compile a tiny model."""
+    if feature not in _FEATURES:
+        probes = {
+            # <mesh inertia="shell"> (needed for flat meshes by newer MuJoCo, unknown to 3.0.x)
+            "mesh_inertia": '<mujoco><asset><mesh name="m" inertia="shell" '
+                            'vertex="0 0 0 1 0 0 0 1 0 1 1 0" face="0 1 2 1 3 2"/></asset></mujoco>',
+            "position_kv": '<mujoco><worldbody><body><joint name="j"/><geom size=".1"/></body></worldbody>'
+                           '<actuator><position joint="j" kv="1"/></actuator></mujoco>',
+        }
+        try:
+            mujoco.MjModel.from_xml_string(probes[feature])
+            _FEATURES[feature] = True
+        except Exception:  # noqa: BLE001
+            _FEATURES[feature] = False
+    return _FEATURES[feature]

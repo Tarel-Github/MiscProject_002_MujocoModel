@@ -13,7 +13,9 @@ def _compile_mesh(m: M.TriMesh, collide=True):
     v = " ".join(f"{x:.9g}" for x in m.V.ravel())
     f = " ".join(str(int(x)) for x in m.F.ravel())
     extra = "" if collide else ' contype="0" conaffinity="0" mass="0"'
-    xml = (f'<mujoco><asset><mesh name="m" vertex="{v}" face="{f}"/></asset><worldbody><body><freejoint/>'
+    from mjstudio.core.compiler import supports
+    shell = ' inertia="shell"' if (m.is_planar() and supports("mesh_inertia")) else ""
+    xml = (f'<mujoco><asset><mesh name="m" vertex="{v}" face="{f}"{shell}/></asset><worldbody><body><freejoint/>'
            f'<geom size="0.01"/><geom type="mesh" mesh="m"{extra}/></body></worldbody></mujoco>')
     return mujoco.MjModel.from_xml_string(xml)
 
