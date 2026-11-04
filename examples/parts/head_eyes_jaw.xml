@@ -1,0 +1,65 @@
+<mujoco model="head_eyes_jaw">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.002"/>
+  <visual>
+    <global offwidth="1920" offheight="1080"/>
+  </visual>
+  <asset>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.25 0.3 0.38" rgb2="0.05 0.06 0.08" width="64" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.16 0.18 0.21" rgb2="0.22 0.24 0.28" width="512" height="512" mark="edge" markrgb="0.3 0.32 0.36"/>
+    <material name="grid" texture="grid" texrepeat="8 8" texuniform="true" reflectance="0.1"/>
+  </asset>
+  <worldbody>
+    <body name="head" pos="0 0 0">
+      <joint name="neck_pitch" type="hinge" pos="0 0 -0.09" axis="0 1 0" range="-0.6981317 0.87266463" damping="1" armature="0.01"/>
+      <joint name="neck_yaw" type="hinge" pos="0 0 -0.09" axis="0 0 1" range="-1.2217305 1.2217305" damping="1" armature="0.01"/>
+      <joint name="neck_roll" type="hinge" pos="0 0 -0.09" axis="1 0 0" range="-0.61086524 0.61086524" damping="1" armature="0.01"/>
+      <geom name="skull" type="ellipsoid" size="0.095 0.075 0.1" pos="-0.01 0 0.01" rgba="0.85 0.67 0.55 1" mass="4"/>
+      <site name="head_imu" pos="0 0 0.03" size="0.005"/>
+      <body name="eye_left" pos="0.07 0.0315 0.03">
+        <joint name="eye_left_yaw" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.78539816 0.78539816" damping="0.002" armature="1e-05"/>
+        <joint name="eye_left_pitch" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.78539816 0.52359878" damping="0.002" armature="1e-05"/>
+        <geom name="eyeball_left" type="sphere" size="0.012" rgba="0.96 0.96 0.94 1" contype="0" conaffinity="0" mass="0.0075"/>
+        <geom name="iris_left" type="cylinder" size="0.0058 0.0008" pos="0.0113 0 0" quat="0.70710678 0 0.70710678 0" rgba="0.25 0.38 0.55 1" contype="0" conaffinity="0" mass="0"/>
+        <geom name="pupil_left" type="cylinder" size="0.0026 0.0009" pos="0.0117 0 0" quat="0.70710678 0 0.70710678 0" rgba="0.02 0.02 0.02 1" contype="0" conaffinity="0" mass="0"/>
+        <site name="gaze_left" pos="0.012 0 0" size="0.001"/>
+      </body>
+      <body name="eye_right" pos="0.07 -0.0315 0.03">
+        <joint name="eye_right_yaw" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.78539816 0.78539816" damping="0.002" armature="1e-05"/>
+        <joint name="eye_right_pitch" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.78539816 0.52359878" damping="0.002" armature="1e-05"/>
+        <geom name="eyeball_right" type="sphere" size="0.012" rgba="0.96 0.96 0.94 1" contype="0" conaffinity="0" mass="0.0075"/>
+        <geom name="iris_right" type="cylinder" size="0.0058 0.0008" pos="0.0113 0 0" quat="0.70710678 0 0.70710678 0" rgba="0.25 0.38 0.55 1" contype="0" conaffinity="0" mass="0"/>
+        <geom name="pupil_right" type="cylinder" size="0.0026 0.0009" pos="0.0117 0 0" quat="0.70710678 0 0.70710678 0" rgba="0.02 0.02 0.02 1" contype="0" conaffinity="0" mass="0"/>
+        <site name="gaze_right" pos="0.012 0 0" size="0.001"/>
+      </body>
+      <body name="jaw" pos="0.005 0 -0.035">
+        <joint name="jaw_open" type="hinge" pos="0 0 0" axis="0 1 0" range="0 0.52359878" damping="0.2" armature="0.001"/>
+        <joint name="jaw_protrude" type="slide" axis="1 0 0" range="0 0.01" damping="2" armature="0.001"/>
+        <geom name="mandible" type="capsule" size="0.012" fromto="0 0.045 -0.01 0.07 0 -0.06" rgba="0.85 0.67 0.55 1" mass="0.1" contype="0" conaffinity="0"/>
+        <geom type="capsule" size="0.012" fromto="0 -0.045 -0.01 0.07 0 -0.06" rgba="0.85 0.67 0.55 1" mass="0.1" contype="0" conaffinity="0"/>
+        <site name="chin" pos="0.075 0 -0.065" size="0.004"/>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <position name="pos_eye_left_yaw" joint="eye_left_yaw" kp="0.05" ctrlrange="-0.78539816 0.78539816"/>
+    <position name="pos_eye_left_pitch" joint="eye_left_pitch" kp="0.05" ctrlrange="-0.78539816 0.52359878"/>
+    <position name="pos_eye_right_yaw" joint="eye_right_yaw" kp="0.05" ctrlrange="-0.78539816 0.78539816"/>
+    <position name="pos_eye_right_pitch" joint="eye_right_pitch" kp="0.05" ctrlrange="-0.78539816 0.52359878"/>
+    <position name="pos_jaw_open" joint="jaw_open" kp="3" ctrlrange="0 0.52359878"/>
+    <position name="pos_neck_pitch" joint="neck_pitch" kp="30" ctrlrange="-0.6981317 0.87266463"/>
+    <position name="pos_neck_yaw" joint="neck_yaw" kp="30" ctrlrange="-1.2217305 1.2217305"/>
+    <position name="pos_neck_roll" joint="neck_roll" kp="30" ctrlrange="-0.61086524 0.61086524"/>
+  </actuator>
+  <sensor>
+    <jointpos name="jointpos_eye_left_yaw" joint="eye_left_yaw"/>
+    <jointpos name="jointpos_eye_left_pitch" joint="eye_left_pitch"/>
+    <framexaxis name="gaze_dir_left" objtype="site" objname="gaze_left"/>
+    <jointpos name="jointpos_eye_right_yaw" joint="eye_right_yaw"/>
+    <jointpos name="jointpos_eye_right_pitch" joint="eye_right_pitch"/>
+    <framexaxis name="gaze_dir_right" objtype="site" objname="gaze_right"/>
+    <jointpos name="jointpos_jaw_open" joint="jaw_open"/>
+    <gyro name="head_gyro" site="head_imu"/>
+    <accelerometer name="head_accel" site="head_imu"/>
+  </sensor>
+</mujoco>

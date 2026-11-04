@@ -177,3 +177,17 @@ def test_transform_session_free_body(ed):
     ts.commit()
     assert np.allclose(ed.world_pose(torso)[0], x0 + [0.3, 0, 0])
     assert torso.get("pos") == "0.3 0 1.282"
+
+
+def test_joint_type_change_and_add_joint_remap_keyframes(ed):
+    from mjstudio.core import ops
+    nq0 = ed.model.nq
+    knee = ed.doc.find_named("joint", "knee_left")
+    ed.set_attrs(knee, {"type": "ball", "range": "0 60"})
+    assert ed.result.ok, ed.result.error
+    assert ed.model.nq == nq0 + 3 and ed.model.key_qpos.shape[1] == ed.model.nq
+    ed.undo_step()
+    assert ed.result.ok and ed.model.nq == nq0
+    ops.add_joint(ed, ed.doc.find_named("body", "head"), "hinge", "nod", axis=(0, 1, 0))
+    assert ed.result.ok, ed.result.error
+    assert ed.model.nq == nq0 + 1

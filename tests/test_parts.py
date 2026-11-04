@@ -119,3 +119,20 @@ def test_free_joint_removed_when_attached_to_body(hum):
     import_part(ed, part, b)
     assert ed.result.ok, ed.result.error
     assert not any(e.tag == "freejoint" for e in b.iter())
+
+
+def test_nested_structural_edits_keep_keyframes_valid(hum):
+    """Several replacements inside one batch: keyframes must be remapped consecutively."""
+    from mjstudio.library import anatomy as A
+    k0 = hum.model.key_qpos.copy()
+    knee = hum.model.jnt_qposadr[hum.joint_id("knee_left")]
+    with hum.batch("many"):
+        for side in ("left", "right"):
+            part = A.make_part(A.build_hand, f"h{side}", side=side)
+            replace_body(hum, hum.doc.find_named("body", f"hand_{side}"), part, prefix=f"{side}_")
+            part = A.make_part(A.build_foot, f"f{side}", side=side)
+            replace_body(hum, hum.doc.find_named("body", f"foot_{side}"), part, prefix=f"{side}_")
+    assert hum.result.ok, hum.result.error
+    m = hum.model
+    assert m.key_qpos.shape == (2, m.nq)
+    assert np.allclose(m.key_qpos[:, m.jnt_qposadr[hum.joint_id("knee_left")]], k0[:, knee])

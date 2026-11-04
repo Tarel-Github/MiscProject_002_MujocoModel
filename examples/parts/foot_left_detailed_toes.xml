@@ -1,0 +1,108 @@
+<mujoco model="foot_left_detailed_toes">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.002"/>
+  <visual>
+    <global offwidth="1920" offheight="1080"/>
+  </visual>
+  <asset>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.25 0.3 0.38" rgb2="0.05 0.06 0.08" width="64" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.16 0.18 0.21" rgb2="0.22 0.24 0.28" width="512" height="512" mark="edge" markrgb="0.3 0.32 0.36"/>
+    <material name="grid" texture="grid" texrepeat="8 8" texuniform="true" reflectance="0.1"/>
+  </asset>
+  <worldbody>
+    <body name="talus_left" pos="0 0 0">
+      <joint name="ankle_flex_left" type="hinge" pos="0 0 0" axis="0.13733413 -0.98095804 0.13733413" range="-0.87266463 0.43633231" damping="1" armature="0.01"/>
+      <geom type="sphere" size="0.022" rgba="0.85 0.67 0.55 1" mass="0.1" contype="0" conaffinity="0"/>
+      <body name="hindfoot_left" pos="-0.012 0 -0.028">
+        <joint name="subtalar_left" type="hinge" pos="0 0 0" axis="-0.68406842 0.29036982 -0.66913061" range="-0.17453293 0.43633231" damping="1" armature="0.005"/>
+        <geom name="heel_left" type="capsule" size="0.024" fromto="-0.035 -0.008 -0.023 -0.035 0.008 -0.023" rgba="0.85 0.67 0.55 1" mass="0.3" friction="1.0 0.005 0.0001"/>
+        <geom type="box" size="0.03 0.022 0.022" pos="0 0 0" rgba="0.85 0.67 0.55 1" mass="0.08" contype="0" conaffinity="0"/>
+        <site name="heel_zone_left" type="box" pos="-0.035 0 -0.035" size="0.04 0.03 0.02" rgba="0.2 0.8 1 0.25" group="4"/>
+        <body name="midfoot_left" pos="0.04 0 0.004">
+          <joint name="midtarsal_left" type="hinge" pos="0 0 0" axis="0.098413566 -0.98413566 0.14762035" range="-0.13962634 0.13962634" damping="3" armature="0.002" stiffness="800" solreflimit="0.005 1"/>
+          <geom name="midfoot_dorsum_left" type="box" size="0.026 0.03 0.018" pos="0.02 0.003 -0.016" rgba="0.85 0.67 0.55 1" mass="0.25" contype="0" conaffinity="0"/>
+          <geom name="midfoot_lateral_left" type="capsule" size="0.008" fromto="0 0.022 -0.037 0.04 0.026 -0.037" rgba="0.85 0.67 0.55 1" mass="0"/>
+          <body name="forefoot_left" pos="0.045 0 0">
+            <joint name="tmt_left" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.087266463 0.087266463" damping="3" armature="0.002" stiffness="800" solreflimit="0.005 1"/>
+            <geom name="forefoot_dorsum_left" type="box" size="0.035 0.034 0.014" pos="0.03 0.002 -0.021" rgba="0.85 0.67 0.55 1" mass="0.25" contype="0" conaffinity="0"/>
+            <geom name="ball_left" type="capsule" size="0.011" fromto="0.065 -0.026 -0.04 0.035 0.034 -0.04" rgba="0.85 0.67 0.55 1" mass="0.05" friction="1.0 0.005 0.0001"/>
+            <site name="forefoot_zone_left" type="box" pos="0.05 0.004 -0.042" size="0.03 0.045 0.016" rgba="0.2 0.8 1 0.25" group="4" quat="0.97324899 0 0 0.22975292"/>
+            <body name="toe1_left_proximal" pos="0.065 -0.026 0">
+              <joint name="toe1_left_mtp" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.61086524 1.2217305" damping="0.1" armature="0.0005"/>
+              <geom type="capsule" size="0.011" fromto="0.002 0 -0.04 0.03 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+              <body name="toe1_left_distal" pos="0.032 0 0">
+                <joint name="toe1_left_ip" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 1.0471976" damping="0.05" armature="0.0002"/>
+                <geom type="capsule" size="0.011" fromto="0.002 0 -0.04 0.024 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+              </body>
+            </body>
+            <body name="toe2_left_proximal" pos="0.056 -0.008 0">
+              <joint name="toe2_left_mtp" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.61086524 1.2217305" damping="0.1" armature="0.0005"/>
+              <geom type="capsule" size="0.0065" fromto="0.002 0 -0.04 0.02 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+              <body name="toe2_left_middle" pos="0.022 0 0">
+                <joint name="toe2_left_pip" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 1.0471976" damping="0.05" armature="0.0002"/>
+                <geom type="capsule" size="0.0065" fromto="0.002 0 -0.04 0.01 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+                <body name="toe2_left_distal" pos="0.012 0 0">
+                  <joint name="toe2_left_dip" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 1.0471976" damping="0.05" armature="0.0002"/>
+                  <geom type="capsule" size="0.0065" fromto="0.002 0 -0.04 0.008 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+                </body>
+              </body>
+            </body>
+            <body name="toe3_left_proximal" pos="0.0494 0.0052 0">
+              <joint name="toe3_left_mtp" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.61086524 1.2217305" damping="0.1" armature="0.0005"/>
+              <geom type="capsule" size="0.006" fromto="0.002 0 -0.04 0.017 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+              <body name="toe3_left_middle" pos="0.019 0 0">
+                <joint name="toe3_left_pip" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 1.0471976" damping="0.05" armature="0.0002"/>
+                <geom type="capsule" size="0.006" fromto="0.002 0 -0.04 0.008 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+                <body name="toe3_left_distal" pos="0.01 0 0">
+                  <joint name="toe3_left_dip" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 1.0471976" damping="0.05" armature="0.0002"/>
+                  <geom type="capsule" size="0.006" fromto="0.002 0 -0.04 0.007 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+                </body>
+              </body>
+            </body>
+            <body name="toe4_left_proximal" pos="0.0428 0.0184 0">
+              <joint name="toe4_left_mtp" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.61086524 1.2217305" damping="0.1" armature="0.0005"/>
+              <geom type="capsule" size="0.0058" fromto="0.002 0 -0.04 0.015 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+              <body name="toe4_left_middle" pos="0.017 0 0">
+                <joint name="toe4_left_pip" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 1.0471976" damping="0.05" armature="0.0002"/>
+                <geom type="capsule" size="0.0058" fromto="0.002 0 -0.04 0.007 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+                <body name="toe4_left_distal" pos="0.009 0 0">
+                  <joint name="toe4_left_dip" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 1.0471976" damping="0.05" armature="0.0002"/>
+                  <geom type="capsule" size="0.0058" fromto="0.002 0 -0.04 0.007 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+                </body>
+              </body>
+            </body>
+            <body name="toe5_left_proximal" pos="0.035 0.034 0">
+              <joint name="toe5_left_mtp" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.61086524 1.2217305" damping="0.1" armature="0.0005"/>
+              <geom type="capsule" size="0.0055" fromto="0.002 0 -0.04 0.013 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+              <body name="toe5_left_middle" pos="0.015 0 0">
+                <joint name="toe5_left_pip" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 1.0471976" damping="0.05" armature="0.0002"/>
+                <geom type="capsule" size="0.0055" fromto="0.002 0 -0.04 0.006 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+                <body name="toe5_left_distal" pos="0.008 0 0">
+                  <joint name="toe5_left_dip" type="hinge" pos="0 0 0" axis="0 -1 0" range="-0.17453293 1.0471976" damping="0.05" armature="0.0002"/>
+                  <geom type="capsule" size="0.0055" fromto="0.002 0 -0.04 0.006 0 -0.04" rgba="0.85 0.67 0.55 1" mass="0.01" friction="1.0 0.005 0.0001"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <position name="pos_toe1_left_mtp" joint="toe1_left_mtp" kp="2" ctrlrange="-0.61086524 1.2217305"/>
+    <position name="pos_toe2_left_mtp" joint="toe2_left_mtp" kp="2" ctrlrange="-0.61086524 1.2217305"/>
+    <position name="pos_toe3_left_mtp" joint="toe3_left_mtp" kp="2" ctrlrange="-0.61086524 1.2217305"/>
+    <position name="pos_toe4_left_mtp" joint="toe4_left_mtp" kp="2" ctrlrange="-0.61086524 1.2217305"/>
+    <position name="pos_toe5_left_mtp" joint="toe5_left_mtp" kp="2" ctrlrange="-0.61086524 1.2217305"/>
+    <position name="pos_ankle_flex_left" joint="ankle_flex_left" kp="120" ctrlrange="-0.87266463 0.43633231"/>
+    <position name="pos_subtalar_left" joint="subtalar_left" kp="60" ctrlrange="-0.17453293 0.43633231"/>
+  </actuator>
+  <sensor>
+    <touch name="touch_heel_zone_left" site="heel_zone_left"/>
+    <touch name="touch_forefoot_zone_left" site="forefoot_zone_left"/>
+    <jointpos name="jointpos_ankle_flex_left" joint="ankle_flex_left"/>
+    <jointpos name="jointpos_subtalar_left" joint="subtalar_left"/>
+    <jointpos name="jointpos_midtarsal_left" joint="midtarsal_left"/>
+    <jointpos name="jointpos_tmt_left" joint="tmt_left"/>
+  </sensor>
+</mujoco>

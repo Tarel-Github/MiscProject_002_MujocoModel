@@ -201,6 +201,11 @@ class Editor:
                 if ch:
                     self.push(SetAttrs(e, ch, text))
             return
+        if (e.tag in ("joint", "freejoint") and "type" in ch) or (e.tag == "body" and "mocap" in ch):
+            # changes the qpos / mocap layout: keep keyframes consistent
+            with self.structural(text or f"Edit {self.doc.label(e)}"):
+                self.push(SetAttrs(e, ch, text or f"Edit {self.doc.label(e)}"))
+            return
         self.push(SetAttrs(e, ch, text or f"Edit {self.doc.label(e)}", merge_key), merge=merge_key is not None)
 
     def set_attr(self, e: Element, key: str, value: str | None, text: str = "", merge_key: str | None = None) -> None:
@@ -321,75 +326,133 @@ class Editor:
     def structural(self, text: str):
         """Batch for edits that may change the joint/actuator/mocap layout:
         keyframes are remapped by element identity at the end."""
-        old = self.valid
+        old = self.layout()
         with self.batch(text):
             yield
             self._remap_keyframes(old)
 
-    def _remap_keyframes(self, old: CompileResult | None) -> None:
+    # -- layout of state vectors computed from the document (no compilation needed, so it
+    #    also works while the model is temporarily invalid, e.g. a joint without mass yet)
+    _GENERATIVE = {"replicate", "composite", "flexcomp", "attach"}
+    _NQ = {"free": 7, "ball": 4, "slide": 1, "hinge": 1}
+    _NV = {"free": 6, "ball": 3, "slide": 1, "hinge": 1}
+
+    def layout(self) -> dict | None:
+        """{'joints': [(elem, type)], 'act': [elem], 'mocap': [elem]} in MuJoCo order, or None
+        if the document uses procedural elements whose expansion is not known here."""
+        doc = self.doc
+        joints: list = []
+        mocap: list = []
+
+        def items(e):
+            for c in children(e):
+                if c.tag in self._GENERATIVE:
+                    raise LookupError(c.tag)
+                if c.tag == "frame":
+                    yield from items(c)
+                else:
+                    yield c
+
+        def walk(body):
+            its = list(items(body))
+            for c in its:
+                if c.tag == "freejoint":
+                    joints.append((c, "free"))
+                elif c.tag == "joint":
+                    joints.append((c, doc.get(c, "type") or "hinge"))
+            for c in its:
+                if c.tag == "body":
+                    if c.get("mocap") == "true":
+                        mocap.append(c)
+                    walk(c)
+
+        try:
+            for wb in doc.sections("worldbody"):
+                walk(wb)
+        except LookupError:
+            return None
+        acts = [c for sec in doc.sections("actuator") for c in children(sec) if c.tag != "plugin"]
+        return {"joints": joints, "act": acts, "mocap": mocap}
+
+    def _qpos0(self, e, jt) -> list[float]:
+        if jt == "free":
+            p, q = self.doc.local_pose(e.getparent())
+            return list(p) + list(q)
+        if jt == "ball":
+            return [1.0, 0.0, 0.0, 0.0]
+        ref = mx.parse_vec(self.doc.get(e, "ref") or "0", 1)
+        r = float(ref[0]) if ref is not None else 0.0
+        return [self.doc.to_rad(r) if jt == "hinge" else r]
+
+    def _remap_keyframes(self, old: dict | None) -> None:
         keys = [k for kf in self.doc.sections("keyframe") for k in children(kf, "key")]
-        if not keys or old is None:
+        if not keys:
             return
-        new = compile_doc(self.doc, drop_tags=("keyframe",))
-        if not new.ok:
+        new = self.layout()
+        if old is None or new is None:
+            log.warning("keyframes not remapped (procedural elements in the model)")
             return
-        om, nm = old.model, new.model
-        J, A, B = int(OBJ.mjOBJ_JOINT), int(OBJ.mjOBJ_ACTUATOR), int(OBJ.mjOBJ_BODY)
-        nq = {0: 7, 1: 4, 2: 1, 3: 1}
-        nv = {0: 6, 1: 3, 2: 1, 3: 1}
+        if ([e for e, _ in old["joints"]] == [e for e, _ in new["joints"]] and
+                [t for _, t in old["joints"]] == [t for _, t in new["joints"]] and
+                old["act"] == new["act"] and old["mocap"] == new["mocap"]):
+            return
 
-        def remap(old_vec, new_vec, kind):
-            for e, (ot, oid) in old.idmap.by_elem.items():
-                nid = new.idmap.id(e)
-                if nid < 0:
-                    continue
-                if kind in ("qpos", "qvel") and ot == J and nm.jnt_type[nid] == om.jnt_type[oid]:
-                    t = int(om.jnt_type[oid])
-                    if kind == "qpos":
-                        n, oa, na = nq[t], om.jnt_qposadr[oid], nm.jnt_qposadr[nid]
-                    else:
-                        n, oa, na = nv[t], om.jnt_dofadr[oid], nm.jnt_dofadr[nid]
-                    new_vec[na:na + n] = old_vec[oa:oa + n]
-                elif kind == "ctrl" and ot == A:
-                    new_vec[nid] = old_vec[oid]
-                elif kind in ("mpos", "mquat") and ot == B:
-                    om_id, nm_id = om.body_mocapid[oid], nm.body_mocapid[nid]
-                    if om_id >= 0 and nm_id >= 0:
-                        n = 3 if kind == "mpos" else 4
-                        new_vec[nm_id * n:nm_id * n + n] = old_vec[om_id * n:om_id * n + n]
-            return new_vec
+        def table(lay, sizes):
+            out, adr = {}, 0
+            for e, t in lay["joints"]:
+                out[e] = (adr, t)
+                adr += sizes[t]
+            return out, adr
 
-        sizes = {"qpos": (om.nq, nm.nq, nm.qpos0), "qvel": (om.nv, nm.nv, np.zeros(nm.nv)),
-                 "ctrl": (om.nu, nm.nu, np.zeros(nm.nu)),
-                 "mpos": (3 * om.nmocap, 3 * nm.nmocap, None), "mquat": (4 * om.nmocap, 4 * nm.nmocap, None)}
+        oq, onq = table(old, self._NQ)
+        ov, onv = table(old, self._NV)
+        nq_t, nnq = table(new, self._NQ)
+        nv_t, nnv = table(new, self._NV)
         for k in keys:
             ch: dict[str, str | None] = {}
-            for attr, (on, nn, init) in sizes.items():
+            v = mx.parse_vec(k.get("qpos"))
+            if v is not None and v.size == onq:
+                out = []
+                for e, t in new["joints"]:
+                    if e in oq and oq[e][1] == t:
+                        a = oq[e][0]
+                        out += list(v[a:a + self._NQ[t]])
+                    else:
+                        out += self._qpos0(e, t)
+                ch["qpos"] = mx.fmt_vec(out) if out else None
+            v = mx.parse_vec(k.get("qvel"))
+            if v is not None and v.size == onv:
+                out = []
+                for e, t in new["joints"]:
+                    if e in ov and ov[e][1] == t:
+                        a = ov[e][0]
+                        out += list(v[a:a + self._NV[t]])
+                    else:
+                        out += [0.0] * self._NV[t]
+                ch["qvel"] = mx.fmt_vec(out) if out else None
+            v = mx.parse_vec(k.get("ctrl"))
+            if v is not None and v.size == len(old["act"]):
+                idx = {e: i for i, e in enumerate(old["act"])}
+                out = [float(v[idx[e]]) if e in idx else 0.0 for e in new["act"]]
+                ch["ctrl"] = mx.fmt_vec(out) if out else None
+            for attr, n in (("mpos", 3), ("mquat", 4)):
                 v = mx.parse_vec(k.get(attr))
-                if v is None or (on == nn and v.size == nn and self._same_layout(old, new)):
-                    continue
-                if v.size != on:
-                    continue
-                if init is None:
-                    init = np.zeros(nn)
-                    if attr == "mquat":
-                        init[0::4] = 1.0
-                ch[attr] = mx.fmt_vec(remap(v, np.array(init, float).copy(), attr)) if nn else None
-            if k.get("act") is not None and om.na != nm.na:
+                if v is not None and v.size == n * len(old["mocap"]):
+                    idx = {e: i for i, e in enumerate(old["mocap"])}
+                    out = []
+                    for e in new["mocap"]:
+                        if e in idx:
+                            out += list(v[idx[e] * n:(idx[e] + 1) * n])
+                        else:
+                            p, q = self.doc.local_pose(e)
+                            out += list(p) if n == 3 else list(q)
+                    ch[attr] = mx.fmt_vec(out) if out else None
+            if k.get("act") is not None and old["act"] != new["act"]:
                 ch["act"] = None
-                log.warning("keyframe '%s': act vector dropped (actuator state layout changed)", k.get("name", ""))
+                log.warning("keyframe '%s': act vector dropped (actuator layout changed)", k.get("name", ""))
+            ch = {a: b for a, b in ch.items() if k.get(a) != b}
             if ch:
                 self.push(SetAttrs(k, ch, "remap keyframe"))
-
-    @staticmethod
-    def _same_layout(old: CompileResult, new: CompileResult) -> bool:
-        om, nm = old.model, new.model
-        if om.njnt != nm.njnt or om.nu != nm.nu:
-            return False
-        for e, (ot, oid) in old.idmap.by_elem.items():
-            if ot in (int(OBJ.mjOBJ_JOINT), int(OBJ.mjOBJ_ACTUATOR)) and new.idmap.id(e) != oid:
-                return False
-        return True
 
     def delete(self, elems: list[Element], cascade: bool = True) -> list[Element]:
         """Delete elements (and, with cascade, actuators/sensors/... that reference them)."""

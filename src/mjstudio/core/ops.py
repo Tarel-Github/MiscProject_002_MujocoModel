@@ -115,7 +115,20 @@ def add_joint(ed: Editor, body: Element, jtype: str = "hinge", name: str | None 
                  range=rng, **attrs)
         if rng is not None and ed.doc.compiler_attr("autolimits", "true") != "true":
             j.set("limited", "true")
-    ed.push(Insert(body, _index(body, "joint"), j, f"Add {jtype} joint {nm}"))
+        if rng is None:
+            # a default class may force limited="true": then a range is mandatory
+            body.append(j)
+            r = ed.doc.resolved(j)
+            body.remove(j)
+            rv = mx.parse_vec(r.get("range", ("0 0", ""))[0], 2)
+            if r.get("limited", ("auto", ""))[0] == "true" and (rv is None or rv[0] >= rv[1]):
+                lo, hi = {"hinge": (-math.pi / 2, math.pi / 2), "slide": (-0.1, 0.1),
+                          "ball": (0.0, math.pi / 2)}[jtype]
+                if jtype in ("hinge", "ball"):
+                    lo, hi = ed.doc.from_rad(lo), ed.doc.from_rad(hi)
+                j.set("range", mx.fmt_vec([lo, hi]))
+    with ed.structural(f"Add {jtype} joint {nm}"):  # qpos layout changes -> remap keyframes
+        ed.push(Insert(body, _index(body, "joint"), j, f"Add {jtype} joint {nm}"))
     return j
 
 

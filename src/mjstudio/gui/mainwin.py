@@ -14,10 +14,14 @@ from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QInputDia
 
 from .. import __version__
 from ..core import ops
+from ..core import parts
 from ..core.compiler import compile_doc, validate_steps
-from ..core.doc import MjcfError
+from ..core.project import Project, missing_resources
+from ..library import anatomy
+from ..core.doc import MjcfDoc, MjcfError
 from ..core.editor import Editor
 from ..core.sim import Simulator
+from .dialogs import JointGroupDialog, LibraryDialog, PickBodyDialog
 from .jointpanel import JointPanel
 from .logpanel import LogPanel
 from .props import PropsPanel
@@ -40,12 +44,13 @@ class MainWindow(QMainWindow):
         self.ed = ed or Editor()
         self.sim = Simulator(self.ed)
         self.protected = False  # True while the open file is an original that was never saved by us
+        self.project: Project | None = None
         self.view = Viewport(self.ed)
         self.view.sim = self.sim
         self.setCentralWidget(self.view)
         self.tree = TreePanel(self.ed)
         self.props = PropsPanel(self.ed)
-        self.joints = JointPanel(self.ed)
+        self.joints = JointPanel(self.ed, groups=lambda: self.project.groups if self.project else [])
         self.simp = SimPanel(self.ed, self.sim)
         dt = self._dock("Hierarchy", self.tree, Qt.LeftDockWidgetArea)
         dp = self._dock("Properties", self.props, Qt.RightDockWidgetArea)
@@ -114,12 +119,18 @@ class MainWindow(QMainWindow):
         f = mb.addMenu("&File")
         self._act(f, "&New model", self.file_new, "Ctrl+N")
         self._act(f, "&Open…", self.file_open, "Ctrl+O")
+        self._act(f, "Open &project…", self.project_open, "Ctrl+Shift+O")
         self.recent_menu = f.addMenu("Open &recent")
         self._fill_recent()
         f.addSeparator()
         self._act(f, "&Save", self.file_save, "Ctrl+S")
         self._act(f, "Save &As…", self.file_save_as, "Ctrl+Shift+S")
+        self._act(f, "Save as pro&ject (folder)…", self.project_save_as)
         self._act(f, "Export compiled MJCF (as MuJoCo sees it)…", self.export_compiled)
+        f.addSeparator()
+        self._act(f, "&Import part from MJCF…", self.import_part_file, "Ctrl+I")
+        self._act(f, "E&xport selected body as part…", self.export_part)
+        self._act(f, "Check missing resources", self.check_resources)
         f.addSeparator()
         self._act(f, "&Validate model (compile + 200 steps)", self.validate, "F7")
         f.addSeparator()
@@ -143,6 +154,11 @@ class MainWindow(QMainWindow):
         self._act(mm, "Add &site", lambda: self._add(lambda p: ops.add_site(self.ed, p)))
         self._act(mm, "Add &camera", lambda: self._add(lambda p: ops.add_camera(self.ed, p)))
         self._act(mm, "Add &light", lambda: self._add(lambda p: ops.add_light(self.ed, p)))
+        lib = mm.addMenu("Insert &library part")
+        self._act(lib, "Hand (5 fingers, 22 joints)…", lambda: self.insert_library("hand"))
+        self._act(lib, "Foot (ankle/hindfoot/midfoot/forefoot/toes)…", lambda: self.insert_library("foot"))
+        self._act(lib, "Head (eyes + jaw + neck)…", lambda: self.insert_library("head"))
+        self._act(mm, "Replace selected body with part…", self.replace_with_part)
         mm.addSeparator()
         self._act(mm, "&Recompile", self.ed.recompile, "F5")
         # ---- Joint
@@ -152,6 +168,9 @@ class MainWindow(QMainWindow):
         j.addSeparator()
         self._act(j, "Add position actuator to joint", lambda: self._add_actuator("position"))
         self._act(j, "Add motor to joint", lambda: self._add_actuator("motor"))
+        j.addSeparator()
+        self._act(j, "Couple two selected joints (equality)…", self.couple_selected)
+        self._act(j, "Create joint group from selected joints…", self.group_selected)
         j.addSeparator()
         self._act(j, "Reset pose (qpos0)", self.ed.reset_pose, "Ctrl+R")
         self._act(j, "Save pose as keyframe…", self.joints._save_key)
@@ -379,6 +398,165 @@ class MainWindow(QMainWindow):
                 self.simp.sync_play()
                 self.tb_play.setText("▶ Play")
 
+    # ================================================================ parts / library / project
+    def _attach_parent(self):
+        t = self._target()
+        while t is not None and t.tag not in ("body", "worldbody"):
+            t = t.getparent()
+        return t if t is not None else self.ed.doc.worldbody
+
+    def import_part_file(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Import part from MJCF", os.getcwd(), MJCF_FILTER)
+        if not path:
+            return
+        try:
+            src = MjcfDoc.load(path)
+        except (MjcfError, OSError) as ex:
+            QMessageBox.critical(self, "Import part", str(ex))
+            return
+        dlg = PickBodyDialog(src, self)
+        if dlg.exec() != PickBodyDialog.Accepted or dlg.body() is None:
+            return
+        part = self._guard(lambda: parts.extract_part(src, dlg.body()))
+        if part is None:
+            return
+        out = self._guard(lambda: parts.import_part(self.ed, part, self._attach_parent(),
+                                                    prefix=dlg.prefix.text().strip() or None))
+        if out:
+            self.ed.select([out[0]])
+            log.info("Imported part '%s' from %s", out[0].get("name"), path)
+
+    def export_part(self):
+        t = self._target()
+        if t is None or t.tag != "body":
+            QMessageBox.information(self, "Export part", "Select a body first.")
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Save part as MJCF", f"{t.get('name') or 'part'}.xml", MJCF_FILTER)
+        if not path:
+            return
+        part = self._guard(lambda: parts.extract_part(self.ed.doc, t))
+        if part is not None:
+            part.save(path)
+            log.info("Saved part %s (%s)", path, "; ".join(part.meta["part"]["notes"]) or "self-contained")
+
+    def replace_with_part(self):
+        t = self._target()
+        if t is None or t.tag != "body":
+            QMessageBox.information(self, "Replace", "Select the body to replace (e.g. a head or a hand).")
+            return
+        path, _ = QFileDialog.getOpenFileName(self, "Replacement part (MJCF)", os.getcwd(), MJCF_FILTER)
+        if not path:
+            return
+        try:
+            src = MjcfDoc.load(path)
+        except (MjcfError, OSError) as ex:
+            QMessageBox.critical(self, "Replace", str(ex))
+            return
+        dlg = PickBodyDialog(src, self, "Replacement part")
+        if dlg.exec() != PickBodyDialog.Accepted or dlg.body() is None:
+            return
+        part = self._guard(lambda: parts.extract_part(src, dlg.body()))
+        if part is not None:
+            out = self._guard(lambda: parts.replace_body(self.ed, t, part, prefix=dlg.prefix.text().strip() or None))
+            if out:
+                self.ed.select([out[0]])
+
+    def insert_library(self, kind):
+        dlg = LibraryDialog(kind, self)
+        if dlg.exec() != LibraryDialog.Accepted:
+            return
+        side, sc = dlg.side.currentText(), dlg.scale.value()
+        parent = self._attach_parent()
+        if kind == "hand":
+            fn = lambda: anatomy.build_hand(self.ed, parent, side, scale=sc)  # noqa: E731
+        elif kind == "foot":
+            fn = lambda: anatomy.build_foot(self.ed, parent, side, scale=sc, toes=dlg.toes.currentText())  # noqa: E731
+        else:
+            if self.ed.doc.find_named("body", "head") is not None:
+                QMessageBox.information(self, "Insert head", "The model already has a body named 'head'. "
+                                        "Use 'Replace selected body with part' to swap heads.")
+                return
+            fn = lambda: anatomy.build_head(self.ed, parent, scale=sc)  # noqa: E731
+        e = self._guard(fn)
+        if e is not None:
+            self.ed.select([e])
+
+    def couple_selected(self):
+        js = [e for e in self.ed.selection if e.tag == "joint" and e.get("name")]
+        if len(js) != 2:
+            QMessageBox.information(self, "Couple joints", "Select exactly two named joints (Ctrl+click).")
+            return
+        ratio, ok = QInputDialog.getDouble(self, "Couple joints",
+                                           f"{js[0].get('name')} = ratio × {js[1].get('name')}", 1.0, -100, 100, 4)
+        if ok:
+            self._guard(lambda: ops.couple_joints(self.ed, js[0], js[1], ratio))
+
+    def group_selected(self):
+        js = [e.get("name") for e in self.ed.selection if e.tag == "joint" and e.get("name")]
+        if not js:
+            QMessageBox.information(self, "Joint group", "Select one or more named joints.")
+            return
+        dlg = JointGroupDialog(js, parent=self)
+        if dlg.exec() != JointGroupDialog.Accepted:
+            return
+        if self.project is None:
+            QMessageBox.information(self, "Joint group", "Joint groups are stored in the project file. "
+                                    "The model will be saved as a project folder next.")
+            if not self.project_save_as():
+                return
+        self.project.set_group(dlg.result_group())
+        self.project.save(self.ed.doc, package=False)
+        self.joints.rebuild()
+
+    def project_open(self):
+        if not self._confirm_discard():
+            return
+        d = QFileDialog.getExistingDirectory(self, "Open project folder", os.getcwd())
+        if not d:
+            return
+        try:
+            prj, doc = Project.load(d)
+        except (OSError, ValueError, MjcfError) as ex:
+            QMessageBox.critical(self, "Open project", str(ex))
+            return
+        self.sim.pause()
+        self.project = prj
+        self.ed.set_doc(doc)
+        self.protected = False
+        self.view.reset_camera()
+        self.joints.rebuild()
+        log.info("Opened project %s", prj.root)
+
+    def project_save_as(self) -> bool:
+        d = QFileDialog.getExistingDirectory(self, "Choose (empty) project folder", os.getcwd())
+        if not d:
+            return False
+        prj = self.project if self.project is not None else Project(d)
+        prj.root = Path(d).resolve()
+        try:
+            notes = prj.save(self.ed.doc, package=True)
+        except OSError as ex:
+            QMessageBox.critical(self, "Save project", str(ex))
+            return False
+        for n in notes:
+            log.info("%s", n)
+        self.project = prj
+        self.protected = False
+        self.ed.undo.set_clean()
+        self._update_title()
+        return True
+
+    def check_resources(self):
+        miss = missing_resources(self.ed.doc)
+        if not miss:
+            QMessageBox.information(self, "Resources", "All referenced asset files exist.")
+            log.info("Resource check: all asset files found")
+            return
+        for lbl, k, p in miss:
+            log.warning("missing resource: %s/%s -> %s", lbl, k, p)
+        QMessageBox.warning(self, "Resources", f"{len(miss)} missing file(s):\n" +
+                            "\n".join(f"{lbl} ({k}): {p}" for lbl, k, p in miss[:20]))
+
     # ================================================================ context menu
     def _context_menu(self, e, gpos):
         menu = QMenu(self)
@@ -446,6 +624,7 @@ class MainWindow(QMainWindow):
             log.error("Cannot open %s: %s", path, ex)
             return False
         self.protected = True
+        self.project = None
         self._push_recent(str(Path(path).resolve()))
         self.view.reset_camera()
         if self.ed.result is not None and not self.ed.result.ok:
@@ -455,6 +634,17 @@ class MainWindow(QMainWindow):
         return True
 
     def file_save(self) -> bool:
+        if self.project is not None:
+            try:
+                for n in self.project.save(self.ed.doc, package=True):
+                    log.info("%s", n)
+            except OSError as ex:
+                QMessageBox.critical(self, "Save project", str(ex))
+                return False
+            self.ed.undo.set_clean()
+            self._update_title()
+            self.statusBar().showMessage(f"Saved project {self.project.root}", 4000)
+            return True
         if self.ed.doc.path is None:
             return self.file_save_as()
         if self.protected:

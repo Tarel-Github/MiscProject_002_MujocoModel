@@ -118,9 +118,10 @@ class JointRow:
 
 
 class JointPanel(QWidget):
-    def __init__(self, ed: Editor, parent=None):
+    def __init__(self, ed: Editor, parent=None, groups=None):
         super().__init__(parent)
         self.ed = ed
+        self.groups_provider = groups or (lambda: [])
         self.rows: list[JointRow] = []
         self.from_ui = False
         lay = QVBoxLayout(self)
@@ -170,6 +171,10 @@ class JointPanel(QWidget):
         self.hi.valueChanged.connect(self._range_edit)
         self.lim.toggled.connect(self._limit_edit)
         lay.addLayout(rbar)
+        self.group_box = QWidget()
+        self.group_lay = QVBoxLayout(self.group_box)
+        self.group_lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self.group_box)
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["Joint", "Type", "Position", "Value"])
         hh = self.table.horizontalHeader()
@@ -223,9 +228,34 @@ class JointPanel(QWidget):
                 keys.append(mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_KEY, k) or f"key {k}")
         self.keys.clear()
         self.keys.addItems(keys)
+        self._build_groups()
         self.refresh_values()
         self._on_sel(self.ed.selection)
         self._filter(self.filter.text())
+
+    def _build_groups(self) -> None:
+        while self.group_lay.count():
+            it = self.group_lay.takeAt(0)
+            if it.widget() is not None:
+                it.widget().deleteLater()
+        for g in self.groups_provider():
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 0, 0, 0)
+            lbl = QLabel(f"group <b>{g.name}</b> ({len(g.joints)} joints)")
+            lbl.setTextFormat(Qt.RichText)
+            lbl.setFixedWidth(220)
+            h.addWidget(lbl)
+            sl = QSlider(Qt.Horizontal)
+            sl.setRange(-1000, 1000)
+            sl.setValue(0)
+            val = QLabel("0.0°")
+            val.setFixedWidth(60)
+            sl.valueChanged.connect(lambda v, g=g, val=val: (g.apply(self.ed, math.radians(v * 0.09)),
+                                                             val.setText(f"{v * 0.09:.1f}°")))
+            h.addWidget(sl, 1)
+            h.addWidget(val)
+            self.group_lay.addWidget(row)
 
     def _cells(self, r: int, info: dict, tname: str, row: JointRow | None) -> None:
         from PySide6.QtWidgets import QTableWidgetItem

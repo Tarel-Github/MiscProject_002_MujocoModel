@@ -1,0 +1,61 @@
+{
+  "format": "mjstudio-project",
+  "version": 1,
+  "model": "model.xml",
+  "joint_groups": [
+    {
+      "name": "fist_left",
+      "joints": {
+        "index_mcp_flex_left": 1.0,
+        "index_pip_left": 1.15,
+        "index_dip_left": 0.8,
+        "middle_mcp_flex_left": 1.0,
+        "middle_pip_left": 1.15,
+        "middle_dip_left": 0.8,
+        "ring_mcp_flex_left": 1.0,
+        "ring_pip_left": 1.15,
+        "ring_dip_left": 0.8,
+        "little_mcp_flex_left": 1.0,
+        "little_pip_left": 1.15,
+        "little_dip_left": 0.8
+      },
+      "description": "curl all four fingers"
+    },
+    {
+      "name": "fist_right",
+      "joints": {
+        "index_mcp_flex_right": 1.0,
+        "index_pip_right": 1.15,
+        "index_dip_right": 0.8,
+        "middle_mcp_flex_right": 1.0,
+        "middle_pip_right": 1.15,
+        "middle_dip_right": 0.8,
+        "ring_mcp_flex_right": 1.0,
+        "ring_pip_right": 1.15,
+        "ring_dip_right": 0.8,
+        "little_mcp_flex_right": 1.0,
+        "little_pip_right": 1.15,
+        "little_dip_right": 0.8
+      },
+      "description": "curl all four fingers"
+    },
+    {
+      "name": "gaze_yaw",
+      "joints": {
+        "eye_left_yaw": 1.0,
+        "eye_right_yaw": 1.0
+      },
+      "description": "conjugate horizontal gaze"
+    },
+    {
+      "name": "gaze_pitch",
+      "joints": {
+        "eye_left_pitch": 1.0,
+        "eye_right_pitch": 1.0
+      },
+      "description": "conjugate vertical gaze"
+    }
+  ],
+  "expressions": {},
+  "meta": {}
+}
