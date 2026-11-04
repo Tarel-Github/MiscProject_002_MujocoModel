@@ -23,6 +23,15 @@ GEOM_SIZE = {"sphere": "0.05", "box": "0.05 0.05 0.05", "capsule": "0.03 0.1", "
 _ORDER = {"inertial": 0, "freejoint": 1, "joint": 1, "geom": 2, "site": 3, "camera": 4, "light": 4, "body": 9}
 
 
+def _q(quat):
+    """Accept a quaternion as sequence or MJCF string; returns normalised array or None."""
+    if quat is None:
+        return None
+    if isinstance(quat, str):
+        quat = mx.parse_vec(quat, 4)
+    return mx.qnorm(quat)
+
+
 def make(tag: str, **attrs) -> Element:
     e = etree.Element(tag)
     for k, v in attrs.items():
@@ -63,7 +72,8 @@ def add_body(ed: Editor, parent: Element | None = None, name: str | None = None,
              geom: str | None = None, **attrs) -> Element:
     parent = body_target(ed, parent)
     nm = _name(ed, "body", name, "body")
-    b = make("body", name=nm, pos=pos, quat=None if quat is None else mx.qnorm(quat), **attrs)
+    quat = _q(quat)
+    b = make("body", name=nm, pos=pos, quat=quat, **attrs)
     if quat is not None and mx.qangle(quat, mx.QID) < 1e-12:
         del b.attrib["quat"]
     with ed.batch(f"Add body {nm}"):
@@ -79,7 +89,7 @@ def add_geom(ed: Editor, parent: Element | None, gtype: str = "sphere", name: st
     if name:
         _name(ed, "geom", name, "geom")
     g = make("geom", name=name, type=gtype, size=size if size is not None else GEOM_SIZE.get(gtype),
-             pos=pos, quat=None if quat is None else mx.qnorm(quat), **attrs)
+             pos=pos, quat=_q(quat), **attrs)
     ed.push(Insert(parent, _index(parent, "geom"), g, f"Add {gtype} geom"))
     return g
 
@@ -124,7 +134,7 @@ def add_camera(ed: Editor, parent: Element | None, name: str | None = None, pos=
     nm = _name(ed, "camera", name, "camera")
     if quat is None:
         quat = mx.xyaxes2q([1, 0, 0, 0, 0.7, 0.7])
-    c = make("camera", name=nm, pos=pos, quat=mx.qnorm(quat), **attrs)
+    c = make("camera", name=nm, pos=pos, quat=_q(quat), **attrs)
     ed.push(Insert(parent, _index(parent, "camera"), c, f"Add camera {nm}"))
     return c
 
@@ -416,3 +426,24 @@ def set_joint_range_deg(ed: Editor, joint: Element, lo_deg: float, hi_deg: float
     """Set a hinge/ball range given in degrees, written in the document's angle unit."""
     lo, hi = ed.doc.from_rad(math.radians(lo_deg)), ed.doc.from_rad(math.radians(hi_deg))
     ed.set_attr(joint, "range", mx.fmt_vec([lo, hi]), "Set joint range")
+
+
+def couple_joints(ed: Editor, joint1: Element | str, joint2: Element | str, ratio: float = 1.0,
+                  offset: float = 0.0, name: str | None = None) -> Element:
+    """Physical coupling q1 = offset + ratio * q2 via an MJCF <equality><joint> constraint
+    (MuJoCo enforces it during simulation; positions are relative to the reference pose)."""
+    def nm(j):
+        e = ed.doc.find_named("joint", j) if isinstance(j, str) else j
+        if e is None or not e.get("name"):
+            raise ValueError("couple_joints needs two named joints")
+        return e.get("name")
+    j1, j2 = nm(joint1), nm(joint2)
+    eq = make("joint", name=name or ed.doc.unique_name("equality", f"couple_{j1}_{j2}"), joint1=j1, joint2=j2,
+              polycoef=mx.fmt_vec([offset, ratio, 0, 0, 0]))
+    sec = ed.doc.section("equality")
+    with ed.batch(f"Couple {j1} to {j2}"):
+        if sec is None:
+            sec = make("equality")
+            ed.push(Insert(ed.doc.root, _section_index(ed, "equality"), sec, "Add equality section"))
+        ed.push(Insert(sec, len(sec), eq, "Add joint coupling"))
+    return eq
