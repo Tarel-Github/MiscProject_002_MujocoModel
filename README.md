@@ -185,5 +185,5 @@ tests/  examples/  docs/
 설계 상세와 MuJoCo 버전별 차이, 제약사항: [docs/DESIGN.md](docs/DESIGN.md) · 다음 단계: [docs/ROADMAP.md](docs/ROADMAP.md)
 
 ## 라이선스
-- 코드: Apache-2.0
-- `examples/models/humanoid.xml`: DeepMind MuJoCo 저장소의 모델(Apache-2.0, 원본 헤더 유지)
+- 이 프로젝트 코드의 라이선스는 저장소 소유자가 정합니다(아직 지정되지 않음).
+- 제3자 파일: `examples/models/humanoid.xml`은 DeepMind MuJoCo 저장소의 모델(Apache-2.0)이며 원본 라이선스 헤더를 유지합니다.

@@ -8,7 +8,6 @@ version = "0.1.0"
 description = "MuJoCo Model Studio - visual MJCF model editor and assembler"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "Apache-2.0"}
 dependencies = [
   "mujoco>=3.0.1",
   "numpy>=1.24",
