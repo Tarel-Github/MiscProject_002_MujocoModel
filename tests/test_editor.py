@@ -164,7 +164,7 @@ def test_transform_session_preview_matches_commit(ed):
     assert np.allclose(ed.data.xaxis[ed.idmap.id(targets[2])], prev_axis, atol=1e-6)
     assert np.allclose(ed.data.geom_xpos[ed.idmap.id(targets[1])], prev_geom, atol=1e-6)
     ed.undo_step()  # one undo step reverts the whole drag
-    assert targets[0].get("pos") == "0 0 -0.39"
+    assert targets[0].get("pos") == "0 0 -.39"  # exact original text restored
 
 
 def test_transform_session_free_body(ed):
