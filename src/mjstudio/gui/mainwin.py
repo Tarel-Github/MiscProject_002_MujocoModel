@@ -462,24 +462,22 @@ class MainWindow(QMainWindow):
                 self.ed.select([out[0]])
 
     def insert_library(self, kind):
+        """Build the part in its own document and assemble it (names are made unique)."""
         dlg = LibraryDialog(kind, self)
         if dlg.exec() != LibraryDialog.Accepted:
             return
         side, sc = dlg.side.currentText(), dlg.scale.value()
-        parent = self._attach_parent()
         if kind == "hand":
-            fn = lambda: anatomy.build_hand(self.ed, parent, side, scale=sc)  # noqa: E731
+            part = anatomy.make_part(anatomy.build_hand, f"hand_{side}", side=side, scale=sc)
         elif kind == "foot":
-            fn = lambda: anatomy.build_foot(self.ed, parent, side, scale=sc, toes=dlg.toes.currentText())  # noqa: E731
+            part = anatomy.make_part(anatomy.build_foot, f"foot_{side}", side=side, scale=sc,
+                                     toes=dlg.toes.currentText())
         else:
-            if self.ed.doc.find_named("body", "head") is not None:
-                QMessageBox.information(self, "Insert head", "The model already has a body named 'head'. "
-                                        "Use 'Replace selected body with part' to swap heads.")
-                return
-            fn = lambda: anatomy.build_head(self.ed, parent, scale=sc)  # noqa: E731
-        e = self._guard(fn)
-        if e is not None:
-            self.ed.select([e])
+            part = anatomy.make_part(anatomy.build_head, "head", scale=sc)
+        out = self._guard(lambda: parts.import_part(self.ed, part, self._attach_parent(), prefix=f"{kind}2_"))
+        if out:
+            self.ed.select([out[0]])
+            log.info("Inserted library part %s as '%s'", kind, out[0].get("name"))
 
     def couple_selected(self):
         js = [e for e in self.ed.selection if e.tag == "joint" and e.get("name")]

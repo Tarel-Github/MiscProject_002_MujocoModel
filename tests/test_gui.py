@@ -128,3 +128,40 @@ def test_simulation_runs(app, win):
     win.sim.step(50)
     win.sim.pause()
     assert win.ed.data.time > 0
+
+
+def test_phase2_handlers_with_scripted_dialogs(app, win, tmp_path, monkeypatch):
+    """Library insert, part import/export/replace, coupling, joint group -> project."""
+    from pathlib import Path
+    from PySide6.QtWidgets import QDialog, QFileDialog, QInputDialog, QMessageBox
+    from mjstudio.gui import dialogs
+    root = Path(__file__).resolve().parents[1]
+    for cls in (dialogs.LibraryDialog, dialogs.PickBodyDialog, dialogs.JointGroupDialog):
+        monkeypatch.setattr(cls, "exec", lambda self: QDialog.Accepted)
+    monkeypatch.setattr(QMessageBox, "information", staticmethod(lambda *a, **k: QMessageBox.Ok))
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: QMessageBox.Ok))
+    monkeypatch.setattr(QFileDialog, "getOpenFileName",
+                        staticmethod(lambda *a, **k: (str(root / "examples/parts/hand_left.xml"), "")))
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(tmp_path / "arm.xml"), "")))
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", staticmethod(lambda *a, **k: str(tmp_path / "proj")))
+    monkeypatch.setattr(QInputDialog, "getDouble", staticmethod(lambda *a, **k: (0.5, True)))
+    ed = win.ed
+    n0 = ed.model.njnt
+    ed.select([ed.doc.find_named("body", "torso")])
+    win.insert_library("hand")                 # 'hand_left' already exists -> renamed
+    assert ed.result.ok and ed.model.njnt == n0 + 22, ed.result.error
+    win.insert_library("foot")
+    win.import_part_file()
+    assert ed.result.ok and ed.model.njnt == n0 + 22 + 5 + 22, ed.result.error
+    ed.select([ed.doc.find_named("body", "upper_arm_left")])
+    win.export_part()
+    assert (tmp_path / "arm.xml").exists()
+    ed.select([ed.doc.find_named("joint", "knee_left"), ed.doc.find_named("joint", "knee_right")])
+    win.couple_selected()
+    assert ed.doc.section("equality") is not None and ed.result.ok
+    win.group_selected()
+    assert win.project is not None and win.project.groups and (tmp_path / "proj" / "project.json").exists()
+    ed.select([ed.doc.find_named("body", "head")])
+    win.replace_with_part()
+    assert ed.result.ok, ed.result.error
+    win.project = None
