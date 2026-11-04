@@ -155,3 +155,22 @@ def test_project_roundtrip_reproduces_expression(head, tmp_path):
     m = mujoco.MjModel.from_xml_path(str(prj2.model_path))
     assert m.nskin == 1
     rig.reset()
+
+
+def test_sensor_bus_groups_and_custom_channels(head):
+    from mjstudio.core.sensing import SensorBus
+    m, d = head.model, head.data
+    rig = head.rigs["face"]
+    fc = FaceController(m, d, rig)
+    bus = SensorBus(m)
+    bus.register("expression", lambda m_, d_: [rig.get(p) for p in sorted(rig.params)], group="expression")
+    bus.register("gaze_left", lambda m_, d_: fc.eye_direction("left"), group="vision")
+    rig.set("smile", 0.5)
+    obs = bus.read_groups(d)
+    assert {"proprio_pos", "vestibular", "pose", "expression", "vision"} <= set(obs)
+    spec = bus.spec(d)
+    g, off, dim, kind = spec["jointpos_jaw_open"]
+    assert g == "proprio_pos" and dim == 1 and kind == "jointpos"
+    assert obs["expression"][sorted(rig.params).index("smile")] == 0.5
+    assert np.isclose(np.linalg.norm(obs["vision"]), 1.0)
+    rig.reset()

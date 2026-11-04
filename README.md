@@ -6,19 +6,20 @@ MuJoCo 물리 시뮬레이션용 **시각적 모델 편집·조립 프로그램*
 
 ![editor](docs/screenshots/editor_overview.png)
 
-## 현재 상태 (이번 세션 기준)
+## 현재 상태
 
 | Phase | 내용 | 상태 |
 |---|---|---|
 | 1 | MJCF 불러오기/저장, 계층 트리, 3D 뷰포트, Body/Joint 속성 편집, MuJoCo 컴파일 검증 | **완료** (+ Undo/Redo, 이동/회전 기즈모, 관절 슬라이더, 시뮬레이션 패널) |
 | 2 | Body 추가·복사·삭제·미러, 관절 생성/제어, 외부 모델 부분 가져오기, 손가락·발·눈·턱 예제 | **완료** (부품 추출/조립/교체, 관절 연동·그룹, 프로젝트 형식) |
-| 3 | 프리미티브 생성, 폴리곤 편집, OBJ/STL 가져오기, 시각/충돌 분리 | 미착수 — 프리미티브 geom 추가·시각/충돌 표시 분리만 구현 |
-| 4 | 얼굴 표정 시스템 (Shape Key / Bone) | 미착수 — 렌더링 경로 기술 검증만 완료 (`docs/DESIGN.md` §8) |
-| 5 | 전신 인간형 통합 검증 | 부분 — 공식 humanoid + 손/발/머리 부품 조립 예제, 물리 검증 테스트 |
-| 6 | 품질 개선 | 부분 — Undo/Redo, 오류 위치 표시, 검증, 회귀 테스트 116개 |
+| 3 | 프리미티브 메시, 폴리곤 편집, OBJ/STL/GLB 가져오기, 시각/충돌 분리, 내보내기 | **완료** (뷰포트 정점 편집 모드 포함) |
+| 4 | 얼굴 표정 (Shape Key + 제어 본), Blender 표정 가져오기, 외부 API, 저장 | **완료** (MuJoCo skin + 렌더 직전 정점 덮어쓰기) |
+| 5 | 전신 인간형 통합 검증 | **완료** (라이브러리 전신 모델 + 최종 평가 시나리오 자동 테스트) |
+| 6 | 품질 개선 | 부분 — Undo/Redo, 오류 위치 표시, 검증, 회귀 테스트 158개, 버전 기능 감지 |
 
-검증 환경: Linux(Ubuntu 24.04, Xvfb + Mesa llvmpipe 소프트웨어 OpenGL)에서 GUI 포함 전체 테스트 통과.
-**Windows 11에서의 GUI 실행은 이 환경에서 검증하지 못했습니다** (코드상 Windows 전용 제약은 없으며, 아래 설치 절차를 따르면 됩니다).
+검증 환경: Linux(Ubuntu 24.04, Xvfb + Mesa llvmpipe 소프트웨어 OpenGL). 테스트 158개(GUI 포함)가
+**MuJoCo 3.0.1 + numpy 1.26**과 **MuJoCo 3.17.0 + numpy 2.5** 양쪽에서 통과합니다.
+**Windows 11에서의 GUI 실행은 이 환경에서 검증하지 못했습니다** (코드상 Windows 전용 제약은 없음).
 
 ## 설치
 
@@ -87,6 +88,37 @@ mjstudio-validate examples/models/humanoid.xml
 |---|---|
 | ![hand](docs/screenshots/hand_left_fist.png) | ![head](docs/screenshots/head_eyes_jaw.png) |
 
+**메시와 Blender 연동** (Mesh 메뉴)
+- OBJ/STL은 원본 파일을 그대로 참조(단위 → `<mesh scale>`, 축 프리셋 → geom 방향)해 UV·법선을 보존, GLB는 glTF 축 규약을 자동 변환
+- 시각 geom(group 2, 접촉 없음)과 충돌 geom(group 3, MuJoCo 볼록 껍질 또는 메시에 맞춘 박스/캡슐 등) 분리
+- 프리미티브 메시(box, sphere, capsule, cylinder, ellipsoid, plane, triangle, quad)
+- 정점 편집 모드(Tab): 정점 클릭 선택(Shift 추가) → 기즈모로 이동, Del 삭제, F 세 정점으로 면 생성, 면 클릭 후 P로 정점 추가, Undo 지원
+- 편집한 메시는 원본 파일을 덮어쓰지 않고 `*_edit.obj`로 분기, 저장 시 `meshes/`에 기록, OBJ/STL 내보내기
+
+**얼굴 표정** (Face 도크, `mjstudio.core.expr`)
+- 얼굴 = MJCF `<skin>`(head·jaw body에 바인딩) → 순수 MuJoCo에서도 턱을 따라 움직임
+- 표정 = Shape Key(블렌드 셰이프) + 제어 본(눈꺼풀) 가중합을 렌더 직전 `scn.skinvert`에 기록 → 물리와 같은 `MjData`·같은 시뮬레이션 시간
+- 파라미터(0~1)는 독립·혼합 가능, 프리셋: neutral, smile, frown, surprise, blink, wink_left/right, 시간 트랙(`data.time` 기준)
+- Blender에서 만든 GLB(Shape Key + `jaw` 본 가중치)를 그대로 가져옴 — `examples/blender/`의 스크립트로 실제 Blender 5.2(bpy)에서 만든 파일로 검증
+- 외부 API:
+
+```python
+from mjstudio.core.expr import FaceController
+fc = FaceController(model, data, rig)
+fc.set_expression("smile", 0.8)
+fc.set_expression("blink_left", 1.0)
+fc.set_eye_rotation("left", yaw, pitch)   # 라디안, 관절 목표
+fc.set_jaw_open(0.5)                      # 턱 범위의 비율
+```
+
+![face](docs/screenshots/face_expressions.png)
+
+**전신 인간형** (`mjstudio.library.humanoid`, Model > Insert library part > Full humanoid)
+- de Leva(1996) 비율, 골반(free)·요추·흉추·목, 어깨 거들·어깨·팔꿈치·회내외·손목·22관절 손, 고관절·무릎·분절 발, 눈·턱·얼굴
+- body 59, 관절 91(자유도 96), 액추에이터 86, 센서 112, 75.9 kg; 감각 데이터는 `SensorBus`로 그룹별(촉각, 고유수용, 전정, 자세, 힘) 읽기와 사용자 채널 확장
+
+![humanoid](docs/screenshots/humanoid.png)
+
 ## 예제
 
 ```bash
@@ -102,13 +134,22 @@ python examples/assemble_humanoid.py
 관절 그룹과 함께 프로젝트(`examples/output/humanoid_assembled/`)로 저장 → 순수 MuJoCo로 다시 불러와 시뮬레이션합니다.
 (관절 22 → 81개, keyframe 2개 자동 재매핑)
 
+```bash
+python examples/final_scenario.py
+```
+**최종 평가 시나리오**를 그대로 수행합니다: 기존 인간형 MJCF 불러오기 → 손가락 특정 마디 수정 → 발 앞부분에 새 관절 추가 →
+Blender에서 만든 턱·얼굴 메시 조립 → 양쪽 눈을 각각 회전하고 턱 이동 → 동시에 미소·눈 깜빡임(시뮬레이션 시간 트랙) →
+프로젝트 저장 → 다시 불러와 시뮬레이션(첫 실행과 동일한 결과, 물리 문제 0건). `tests/test_scenario.py`가 같은 내용을 검증합니다.
+
+![scenario](docs/screenshots/final_scenario_editor.png)
+
 ## 테스트
 
 ```bash
 python -m pytest tests
 ```
 
-GUI 테스트(`tests/test_gui.py`)는 디스플레이가 필요합니다. 헤드리스 Linux에서는:
+158개 테스트. GUI 테스트(`tests/test_gui.py`)는 디스플레이가 필요합니다. 헤드리스 Linux에서는:
 
 ```bash
 xvfb-run -a -s "-screen 0 1920x1080x24" python -m pytest tests
@@ -131,9 +172,13 @@ src/mjstudio/
     project.py   프로젝트 폴더(model.xml + project.json), 패키징, 누락 리소스 검사, 관절 그룹
     preview.py   기즈모 드래그 실시간 미리보기
     sim.py       시뮬레이션 제어, 불안정 감지, 센서/접촉
+    meshes.py    메시 데이터(프리미티브, OBJ/STL, 편집), meshops.py 문서 내 메시 에셋
+    gltf.py      glTF/GLB 읽기(희소 Shape Key, skin)·쓰기
+    expr.py      표정 리그·FaceController, faceops.py 얼굴 부착/GLB 가져오기
+    sensing.py   SensorBus (구조화된 감각 데이터 + 확장 채널)
     schema.py, mathx.py, undo.py
   gui/         PySide6 GUI (viewport, tree, props, jointpanel, simpanel, ...)
-  library/     anatomy.py (손/발/머리 부품 생성기)
+  library/     anatomy.py (손/발/머리), face.py (절차적 얼굴), humanoid.py (전신)
 tests/  examples/  docs/
 ```
 

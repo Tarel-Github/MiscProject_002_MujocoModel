@@ -102,27 +102,59 @@ MJCF로 표현할 수 없는 데이터(관절 그룹, 향후 표정 리그)는 p
 | `MjSpec` 편집 API | 없음 | 3.2+ (API 변경 잦음) | 사용하지 않음 (lxml 문서 모델) |
 | `<frame>`, `<replicate>`, `<attach>` | 없음 | 3.1~3.2+ | 보존·표시는 되지만 keyframe 재매핑은 경고 후 생략 |
 | `fromto` 프레임 방향 | z = from − to 방향 | 동일(3.17에서 테스트 통과) | 실제 컴파일러 동작에 맞춤 |
+| 평면 메시 | 시각 전용이면 허용 | 메시 단계에서 부피 계산 → `<mesh inertia="shell">` 필요 (3.0.1에는 속성 없음) | 기능 감지(`compiler.supports`) 후 지원 시에만 부여 |
+| `MjvScene.skinvert` 덮어쓰기, `mjr_uploadMesh` | 동작 | 동작 | 양쪽 테스트 통과 |
 
-검증: 전체 테스트 116개가 MuJoCo 3.0.1/numpy 1.26과 MuJoCo 3.17.0/numpy 2.5.4 양쪽에서 통과(Linux, Python 3.12).
+검증: 전체 테스트 158개가 MuJoCo 3.0.1/numpy 1.26과 MuJoCo 3.17.0/numpy 2.5.4 양쪽에서 통과(Linux, Python 3.12).
 
-## 8. 얼굴 표정 시스템 설계 (Phase 4 — 미구현, 기술 검증 완료)
+## 8. 메시 파이프라인 (Phase 3)
 
-MuJoCo 렌더러는 Shape Key를 지원하지 않으므로 다음 경로를 택합니다(3.0.1에서 동작 확인):
-- 얼굴 메시를 MJCF `<skin>`(시각 전용, 충돌 없음)으로 넣고 bone을 머리·턱 body에 바인딩 → 외부 MuJoCo 뷰어에서도 턱을 따라 움직임
-- 에디터는 `mjv_updateScene` 이후 `scn.skinvert`/`skinnormal`을 **Shape Key 가중합 + 제어용 bone LBS** 결과로 덮어씀
-  (`Viewport.scene_hooks`). 3.0.1에서 `skinvert` 수정이 `mjr_render`에 반영됨을 확인했습니다.
-- 표정은 물리와 같은 `MjData`의 머리·턱 포즈와 `data.time`으로 평가되므로 시뮬레이션 시간 기준으로 동기화됩니다.
-- Blender 데이터는 glTF/GLB의 morph target(Shape Key) + skin(JOINTS_0/WEIGHTS_0)로 가져오고, MJCF로 표현 불가한 Shape Key는
-  `expressions/*.npz` + project.json에 보존합니다.
-- 메시 대안 경로: 3.0.1은 메시 정점 순서를 보존하며 `v_orig = R(mesh_quat)·v + mesh_pos` 관계가 성립(확인)하므로
-  `mjr_uploadMesh`로 메시 geom을 변형하는 방식도 가능합니다.
+- **가져오기는 파일 참조**: OBJ/STL은 원본 파일을 `<mesh file>`로 참조하고 단위는 `<mesh scale>`, 축 프리셋(MuJoCo / Blender 장면 Z-up·정면 −Y / Y-up)은
+  geom 방향(quat)으로 표현합니다. 원본의 UV·법선이 보존되고 원본 파일은 수정되지 않습니다.
+- **glTF/GLB**는 축 규약이 정해져 있어(Y-up, +Z 정면) 노드 변환과 축 변환을 정점에 적용해 메모리 OBJ 에셋으로 만듭니다.
+- **생성·편집한 메시**는 `doc.mem_assets`(파일 키 → OBJ 바이트)에 두고 Undo 명령(`SetMemAsset`)으로 바꿉니다.
+  컴파일 시 MuJoCo VFS로 전달되고, 저장 시 `meshes/`(프로젝트는 패키징)로 기록됩니다. 디스크의 메시를 처음 편집하면 `*_edit.obj`로 분기합니다.
+- **시각/충돌 분리**: 시각 geom(`contype=conaffinity=0`, group 2, 질량 0)과 충돌 geom(group 3: MuJoCo 볼록 껍질, 또는 `type="box" mesh="…"`처럼
+  MuJoCo가 메시에 맞춰 피팅하는 프리미티브). 평면 메시는 볼록 껍질을 만들 수 없어(qhull 오류) 자동으로 시각 전용이 됩니다.
+- **정점 편집 모드**: 컴파일된 모델의 `mesh_vert`(3.0.1에서 정점 순서 보존과 `v_file = (R(mesh_quat)·v + mesh_pos)/scale` 관계를 확인)를
+  드래그 중 직접 수정하고 `mjr_uploadMesh`로 GPU에 올려 미리보기, 놓으면 파일 프레임 데이터로 환산해 Undo 단계로 커밋합니다.
+  MuJoCo는 메시당 정점 4개 이상, 일관된 면 방향을 요구하므로(위반 시 컴파일 오류로 표시) 삼각형 프리미티브는 무게중심 분할(정점 4)로 만듭니다.
 
-## 9. 제약사항 (사실대로)
+## 9. 얼굴 표정 시스템 (Phase 4)
+
+```
+FaceRig (머리 국소 좌표)                         MuJoCo
+  V0 + Σ wₖ·ΔShapeKeyₖ          (방식 B)
+  → 제어 본 LBS (눈꺼풀 회전)     (방식 A)
+  → 머리/턱 LBS ← data.xpos/xmat(head, jaw)  ←  mj_step / mj_forward (같은 MjData, 같은 data.time)
+  → scn.skinvert / skinnormal 덮어쓰기  →  mjr_render
+```
+- 얼굴은 MJCF `<skin file="face.skn">`: 기준 프레임을 머리 국소 좌표로 두어(head bindpos = 0, jaw bindpos = 머리 기준 턱 휴지 포즈)
+  머리 위치가 바뀌어도 바인딩이 유지되고, **순수 MuJoCo 뷰어에서도 턱 관절을 따라 얼굴이 움직입니다**(표정은 에디터/API에서 적용).
+  .skn 형식은 MuJoCo 3.0.1 소스(`mjCSkin::LoadSKN`)에서 확인했고, 중립 표정에서 우리 계산이 MuJoCo 자체 스킨 계산과 float32 정밀도로 일치함을 테스트합니다.
+- 눈 회전과 턱은 MuJoCo 관절(시뮬레이션·액추에이터·센서)이고, 얼굴 변형은 시각 전용입니다(물리 계산 불필요). `FaceController`가 둘을 한 API로 묶습니다.
+- 시간 트랙(`Track`)은 `data.time`으로 평가되어 물리와 같은 시간 기준으로 동기화됩니다.
+- 저장: `project.json["expressions"]`(파라미터·프리셋·현재 값·트랙·본 피벗) + `expressions/<rig>.npz`(정점, 면, 턱 가중치, Shape Key, 본 가중치) + `meshes/<skin>.skn`.
+- Blender: Shape Key → glTF morph target(희소 accessor 포함), `jaw` 본 가중치 → 턱 바인딩. 내보내기가 법선 때문에 나눈 정점은 합치되,
+  본 가중치나 Shape Key가 다른 정점(입술 틈처럼 의도적으로 나눈 이음매)은 유지합니다.
+- 절차적 얼굴(`library/face.py`): 비균일 대칭 격자(정점 약 12,000), 안구 주위 구면 눈꺼풀 + 안검열, 턱에 묶인 아랫입술 틈,
+  유한 지지 커널로 정의한 Shape Key(영역이 겹치지 않으면 정확히 독립).
+
+## 10. 감각 데이터 인터페이스
+
+`core/sensing.py`의 `SensorBus`는 MuJoCo 센서를 종류별 그룹(touch, proprio_pos, proprio_vel, vestibular, pose, force, effort)으로 묶어
+관측 벡터와 레이아웃 명세(`spec()`)를 제공하고, `register()`로 MuJoCo 밖의 채널(표정 상태, 시선, 향후 통각·피부 모델)을 같은 `MjData` 위에 추가합니다.
+
+## 11. 제약사항 (사실대로)
 
 - Windows 11 GUI 실행은 검증하지 못함. 개발·검증은 Linux + Xvfb + Mesa 소프트웨어 렌더러.
 - `<include>`는 불러올 때 인라인화되어 단일 파일로 저장됨.
-- 폴리곤 편집, OBJ/STL/glTF 가져오기, 메시 내보내기(Phase 3), 얼굴 표정(Phase 4)은 아직 구현되지 않음.
-- 기즈모는 이동·회전만 제공(크기는 속성 패널의 `size`로 편집).
+- 얼굴 표정은 에디터 뷰포트와 API에서 적용됨. 순수 MuJoCo 뷰어는 스킨을 휴지 형태 + 턱 추종으로만 보여 줌(Shape Key 미적용).
+- 절차적 얼굴은 양식화된 형상이며(사실적 얼굴 아님), 턱을 크게 열면 LBS 경계에 주름이 보임. 사실적 얼굴은 Blender에서 만들어 GLB로 가져오는 경로를 권장.
+- Blender GLB의 제어 본은 head/jaw만 사용(그 외 본은 무시). glTF 가져오기는 메시·Shape Key·skin 가중치만 사용하며 재질/텍스처는 가져오지 않음.
+- 메시 편집으로 다시 쓰는 OBJ에는 UV가 포함되지 않음(가져오기만 한 메시는 원본 파일을 참조하므로 UV 유지).
+- 기즈모는 이동·회전만 제공(크기는 속성 패널의 `size`, 메시는 `<mesh scale>`).
 - `mirror_duplicate`는 프리미티브 geom 기준. 메시 geom의 형상 자체는 반사하지 않음.
+- 전신 인간형은 위치 제어만 있고 균형 제어기가 없어, 서 있는 자세에서 약 2초 후 넘어짐(물리적으로 정상).
 - 부품 조립 시 대상 main 기본값 중 내장 기본값이 없는 속성(예: material)은 부품에도 적용될 수 있음(경고 출력).
 - 해부학 부품의 단순화 사항은 `docs/ANATOMY.md` 참고.
