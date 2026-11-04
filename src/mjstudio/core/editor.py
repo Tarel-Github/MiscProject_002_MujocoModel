@@ -420,7 +420,8 @@ class Editor:
             raise ValueError("cannot move an element into itself")
         with self.structural(text or f"Move {self.doc.label(e)}"):
             if keep_world and e.tag in ("body", "geom", "site", "camera", "light", "joint", "frame") and self.valid:
-                wp, wq = self.world_pose(e)
+                # L' = P_new^-1 o P_old o L  (independent of the element's own joint motion)
+                wp, wq = self.frame_world(e)
                 pp, pq = self.world_frame_of(new_parent)
                 ip, iq = mx.pose_inv(pp, pq)
                 lp, lq = mx.pose_mul(ip, iq, wp, wq)
@@ -470,12 +471,31 @@ class Editor:
             bid = self.valid.idmap.id(e)
             if bid >= 0:
                 return self.data.xpos[bid].copy(), self.data.xquat[bid].copy()
+        return self.frame_world(e)
+
+    def parent_world(self, e: Element) -> tuple[np.ndarray, np.ndarray]:
+        """Current world pose of the frame *e* is expressed in."""
         parent = e.getparent()
-        pp, pq = self.world_frame_of(parent) if parent is not None else (np.zeros(3), mx.QID.copy())
+        return self.world_frame_of(parent) if parent is not None else (np.zeros(3), mx.QID.copy())
+
+    def frame_world(self, e: Element) -> tuple[np.ndarray, np.ndarray]:
+        """parent_world o local_pose: the element frame excluding its own joint motion."""
+        pp, pq = self.parent_world(e)
         lp, lq = self.doc.local_pose(e)
-        if e.tag in ("geom", "site") and parent is not None and parent.tag == "body":
-            pass
         return mx.pose_mul(pp, pq, lp, lq)
+
+    def local_after_world_delta(self, e: Element, dpos, dquat, pivot, P0=None, L0=None):
+        """New local pose after applying the world-space rigid motion
+        D(x) = dquat*(x - pivot) + pivot + dpos to element *e*:
+        L' = P^-1 o D o P o L  (exact even when joints are posed)."""
+        pp, pq = P0 if P0 is not None else self.parent_world(e)
+        lp, lq = L0 if L0 is not None else self.doc.local_pose(e)
+        pivot = np.asarray(pivot, float)
+        D = (pivot + np.asarray(dpos, float) - mx.qrot(dquat, pivot), mx.qnorm(dquat))
+        wp, wq = mx.pose_mul(pp, pq, lp, lq)
+        wp, wq = mx.pose_mul(D[0], D[1], wp, wq)
+        ip, iq = mx.pose_inv(pp, pq)
+        return mx.pose_mul(ip, iq, wp, wq)
 
     def joints(self) -> list[dict]:
         """Joint table of the compiled model (for sliders and APIs)."""

@@ -143,9 +143,9 @@ def q2axang(q: Sequence[float]) -> tuple[np.ndarray, float]:
 
 
 def qangle(a: Sequence[float], b: Sequence[float]) -> float:
-    """Rotation angle between two orientations (radians)."""
-    d = abs(float(np.dot(qnorm(a), qnorm(b))))
-    return 2 * math.acos(min(1.0, d))
+    """Rotation angle between two orientations (radians); atan2 form is accurate near 0."""
+    d = qmul(qconj(qnorm(a)), qnorm(b))
+    return 2 * math.atan2(float(np.linalg.norm(d[1:])), abs(float(d[0])))
 
 
 # ------------------------------------------------------- MJCF orientation specs

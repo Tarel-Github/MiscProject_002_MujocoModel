@@ -110,3 +110,70 @@ def test_new_doc_and_save(tmp_path):
     ed.save(p)
     assert not ed.dirty
     assert mujoco.MjModel.from_xml_path(str(p)).ngeom == 1
+
+
+def test_world_delta_with_posed_joints(ed):
+    """Translating a posed child body in world space moves it exactly by that vector."""
+    ed.set_qpos("knee_left", [-1.2])
+    ed.set_qpos("hip_y_left", [-0.7])
+    foot = ed.doc.find_named("body", "foot_left")
+    bid = ed.idmap.id(foot)
+    x0 = ed.data.xpos[bid].copy()
+    q0 = ed.data.xquat[bid].copy()
+    t = np.array([0.05, -0.02, 0.03])
+    Q = mx.axang2q([0, 1, 0], 0.4)
+    lp, lq = ed.local_after_world_delta(foot, t, Q, x0)
+    ed.set_pose(foot, lp, lq)
+    bid = ed.idmap.id(foot)
+    assert np.allclose(ed.data.xpos[bid], x0 + t, atol=1e-6)
+    assert mx.qangle(ed.data.xquat[bid], mx.qmul(Q, q0)) < 1e-6
+
+
+def test_move_keeps_world_pose_when_posed(ed):
+    ed.set_qpos("elbow_left", [0.8])
+    ed.set_qpos("shoulder1_left", [0.5])
+    hand = ed.doc.find_named("body", "hand_left")
+    bid = ed.idmap.id(hand)
+    x0, q0 = ed.data.xpos[bid].copy(), ed.data.xquat[bid].copy()
+    ed.move(hand, ed.doc.find_named("body", "torso"))
+    bid = ed.idmap.id(hand)
+    assert np.allclose(ed.data.xpos[bid], x0, atol=1e-6)
+    assert mx.qangle(ed.data.xquat[bid], q0) < 1e-6
+
+
+def test_transform_session_preview_matches_commit(ed):
+    from mjstudio.core.preview import TransformSession
+    ed.set_qpos("knee_left", [-0.9])
+    targets = [ed.doc.find_named("body", "foot_left"), ed.doc.find_named("geom", "head"),
+               ed.doc.find_named("joint", "elbow_right")]
+    ts = TransformSession(ed, targets)
+    pivot = ed.world_pose(targets[0])[0]
+    t, Q = np.array([0.02, 0.0, 0.05]), mx.axang2q([1, 0, 0], 0.3)
+    ts.update(t, Q, pivot)
+    expect = {it["e"]: mx.pose_mul(*it["P0"], *it["L"]) for it in ts.items}
+    foot_preview = ed.data.xpos[ed.idmap.id(targets[0])].copy()
+    prev_geom = ed.data.geom_xpos[ed.idmap.id(targets[1])].copy()
+    prev_axis = ed.data.xaxis[ed.idmap.id(targets[2])].copy()
+    ts.commit("drag")
+    assert ed.result.ok
+    for e in targets:
+        p, q = ed.frame_world(e)
+        assert np.allclose(p, expect[e][0], atol=1e-6), e.get("name")
+        assert mx.qangle(q, expect[e][1]) < 1e-6
+    assert np.allclose(ed.data.xpos[ed.idmap.id(targets[0])], foot_preview, atol=1e-6)
+    assert np.allclose(ed.data.xaxis[ed.idmap.id(targets[2])], prev_axis, atol=1e-6)
+    assert np.allclose(ed.data.geom_xpos[ed.idmap.id(targets[1])], prev_geom, atol=1e-6)
+    ed.undo_step()  # one undo step reverts the whole drag
+    assert targets[0].get("pos") == "0 0 -0.39"
+
+
+def test_transform_session_free_body(ed):
+    from mjstudio.core.preview import TransformSession
+    torso = ed.doc.find_named("body", "torso")
+    ts = TransformSession(ed, [torso])
+    x0 = ed.world_pose(torso)[0]
+    ts.update([0.3, 0, 0], mx.QID, x0)
+    assert np.allclose(ed.world_pose(torso)[0], x0 + [0.3, 0, 0])
+    ts.commit()
+    assert np.allclose(ed.world_pose(torso)[0], x0 + [0.3, 0, 0])
+    assert torso.get("pos") == "0.3 0 1.282"
