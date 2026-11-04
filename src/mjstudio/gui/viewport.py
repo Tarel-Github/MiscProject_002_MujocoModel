@@ -30,9 +30,14 @@ AXCOL = [(0.95, 0.32, 0.32), (0.45, 0.88, 0.38), (0.36, 0.58, 1.0)]
 def vis_signature(m: mujoco.MjModel):
     """Changes whenever the GPU resources held by an MjrContext would differ."""
     crc = 0
-    for arr in (m.mesh_vert, m.mesh_face, m.mesh_normal, m.mesh_texcoord, m.mesh_facenormal,
-                m.mesh_facetexcoord, m.tex_rgb, m.tex_width, m.tex_height, m.tex_type, m.hfield_data,
-                m.hfield_size, m.skin_vert, m.skin_face, m.skin_texcoord, m.mesh_vertadr, m.mesh_faceadr):
+    # field names differ between MuJoCo versions (e.g. tex_rgb -> tex_data in 3.2+)
+    names = ("mesh_vert", "mesh_face", "mesh_normal", "mesh_texcoord", "mesh_facenormal", "mesh_facetexcoord",
+             "tex_rgb", "tex_data", "tex_width", "tex_height", "tex_type", "hfield_data", "hfield_size",
+             "skin_vert", "skin_face", "skin_texcoord", "mesh_vertadr", "mesh_faceadr")
+    for nm in names:
+        arr = getattr(m, nm, None)
+        if arr is None:
+            continue
         a = np.ascontiguousarray(arr)
         if a.size:
             crc = zlib.crc32(memoryview(a).cast("B"), crc)
