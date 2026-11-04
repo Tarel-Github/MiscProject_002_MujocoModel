@@ -140,9 +140,11 @@ def import_mesh(ed: Editor, path: str | os.PathLike, parent: Element | None = No
     """Reference an OBJ/STL file as a mesh asset (units -> <mesh scale>, axis preset ->
     geom orientation) and attach visual/collision geoms to a new or existing body."""
     p = Path(path).resolve()
-    data = M.read_mesh_file(p)           # validates readability, gives planarity/stats
     if units not in M.UNITS:
         raise ValueError(f"units must be one of {list(M.UNITS)}")
+    if p.suffix.lower() in (".glb", ".gltf"):
+        return _import_gltf_mesh(ed, p, parent, new_body, name, units, collision, pos)
+    data = M.read_mesh_file(p)           # validates readability, gives planarity/stats
     if axes not in M.AXES:
         raise ValueError(f"axes must be one of {list(M.AXES)}")
     nm = ed.doc.unique_name("mesh", name or p.stem)
@@ -237,3 +239,29 @@ def geom_mesh_elem(ed: Editor, geom: Element) -> Element | None:
 def mesh_users(ed: Editor, mesh_elem: Element) -> list[Element]:
     nm = ed.doc.obj_name(mesh_elem)
     return [g for g in ed.doc.iter_tags("geom") if ed.doc.get(g, "mesh") == nm]
+
+
+def _import_gltf_mesh(ed: Editor, p: Path, parent, new_body, name, units, collision, pos) -> dict:
+    """glTF has a fixed axis convention (Y up, +Z front): node transforms and the axis change
+    are baked into the vertices, which are stored as an in-memory OBJ asset."""
+    from . import gltf
+    sc = gltf.load(p)
+    if not sc.meshes:
+        raise ValueError(f"no mesh in {p}")
+    Vs, Fs, off = [], [], 0
+    for gm in sc.meshes:
+        Vs.append(gltf.to_mujoco(gm.V, gm.world))
+        Fs.append(gm.F + off)
+        off += len(gm.V)
+    m = M.TriMesh(np.vstack(Vs) * M.UNITS[units], np.vstack(Fs), name or p.stem)
+    m.weld(1e-9)
+    with ed.structural(f"Import mesh {p.name}"):
+        me = add_mesh_asset(ed, m, name or p.stem)
+        if new_body:
+            from .ops import add_body
+            body = add_body(ed, parent, ed.doc.unique_name("body", me.get("name")), pos=pos)
+        else:
+            body = body_target(ed, parent)
+        geoms = mesh_geoms(ed, body, me.get("name"), True, collision, planar=m.is_planar())
+    log.info("Imported %s: %d vertices, %d faces from %d glTF mesh(es)", p.name, m.nv, m.nf, len(sc.meshes))
+    return {"mesh": me, "body": body, "geoms": geoms, "stats": (m.nv, m.nf)}

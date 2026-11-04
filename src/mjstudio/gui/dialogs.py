@@ -122,3 +122,46 @@ class LibraryDialog(QDialog):
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
+
+
+class MeshImportDialog(QDialog):
+    """Options for importing an OBJ/STL/GLB mesh."""
+
+    def __init__(self, path: str, has_body: bool, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Import mesh")
+        lay = QVBoxLayout(self)
+        lay.addWidget(QLabel(f"<b>{path}</b>"))
+        form = QFormLayout()
+        self.units = QComboBox()
+        self.units.addItems(["m", "cm", "mm", "in", "ft"])
+        self.axes = QComboBox()
+        self.axes.addItem("MuJoCo (Z up, +X front)", "mujoco")
+        self.axes.addItem("Blender scene (Z up, -Y front)", "blender")
+        self.axes.addItem("Y up (+Z front)", "yup")
+        self.mode = QComboBox()
+        self.mode.addItem("new body", True)
+        if has_body:
+            self.mode.addItem("attach to selected body", False)
+        self.collision = QComboBox()
+        self.collision.addItems(["hull", "box", "capsule", "sphere", "cylinder", "ellipsoid", "none"])
+        self.name = QLineEdit()
+        self.name.setPlaceholderText("from file name")
+        if path.lower().endswith((".glb", ".gltf")):
+            self.axes.setEnabled(False)
+            self.axes.setToolTip("glTF defines its axes (Y up, +Z front); converted automatically")
+        form.addRow("Units", self.units)
+        form.addRow("Axes", self.axes)
+        form.addRow("Place as", self.mode)
+        form.addRow("Collision shape", self.collision)
+        form.addRow("Name", self.name)
+        lay.addLayout(form)
+        note = QLabel("Visual geom: group 2, no contacts. Collision geom: group 3 (MuJoCo convex hull or a "
+                      "primitive fitted to the mesh).")
+        note.setWordWrap(True)
+        note.setStyleSheet(f"color:{C['dim']}")
+        lay.addWidget(note)
+        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)

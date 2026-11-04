@@ -165,3 +165,68 @@ def test_phase2_handlers_with_scripted_dialogs(app, win, tmp_path, monkeypatch):
     win.replace_with_part()
     assert ed.result.ok, ed.result.error
     win.project = None
+
+
+def test_mesh_edit_mode_and_face_panel(app, win, monkeypatch):
+    """Primitive mesh -> vertex edit mode (pick, gizmo drag, delete, poke, undo); face panel."""
+    import mujoco
+    from PySide6.QtWidgets import QMessageBox
+    from mjstudio.core import meshops
+    from mjstudio.gui.meshedit import MeshEditMode
+    monkeypatch.setattr(QMessageBox, "information", staticmethod(lambda *a, **k: QMessageBox.Ok))
+    ed = win.ed
+    out = meshops.create_primitive_mesh(ed, ed.doc.find_named("body", "torso"), "box", pos=(0.3, 0, 0))
+    geom = out["geoms"][0]
+    ed.select([geom])
+    win.toggle_mesh_edit()
+    mode = win.view.mesh_mode
+    assert isinstance(mode, MeshEditMode)
+    _render(app, win)
+    W = mode.world_vertices()
+    top = int(np.argmax(W[:, 2] + 0.01 * W[:, 0] + 0.001 * W[:, 1]))
+    sx, sy, _ = win.view._proj.project(W[top])
+    mode.pick(win.view._proj, sx, sy, False)
+    assert mode.sel == [top]
+    _render(app, win)
+    g, P = win.view.gizmo, win.view._proj
+    a = P.project(g.origin + g.R[:, 2] * g.L * 0.7)
+    b = P.project(g.origin + g.R[:, 2] * g.L * 1.4)
+    p0, p1 = QPoint(int(a[0]), int(a[1])), QPoint(int(b[0]), int(b[1]))
+    QTest.mouseMove(win.view, p0)
+    QTest.mousePress(win.view, Qt.LeftButton, Qt.NoModifier, p0)
+    for k in range(1, 5):
+        QTest.mouseMove(win.view, p0 + (p1 - p0) * k / 4)
+    QTest.mouseRelease(win.view, Qt.LeftButton, Qt.NoModifier, p1)
+    assert ed.result.ok, ed.result.error
+    W2 = win.view.mesh_mode.world_vertices()
+    assert W2[top, 2] > W[top, 2] + 0.005 and np.allclose(np.delete(W2, top, 0), np.delete(W, top, 0), atol=1e-6)
+    ed.undo_step()
+    assert np.allclose(win.view.mesh_mode.world_vertices(), W, atol=1e-6)
+    # add a vertex inside a face (poke) and delete it again
+    mode.face, mode.sel = 0, []
+    mode.poke()
+    assert ed.result.ok and meshops.get_mesh_data(ed, mode.mesh).nv == 9
+    mode.delete()                       # deletes the new (selected) vertex and its 3 faces
+    d = meshops.get_mesh_data(ed, mode.mesh)
+    assert d.nv == 8 and d.nf == 11
+    win.toggle_mesh_edit()
+    assert win.view.mesh_mode is None
+    # face panel: procedural face on a fresh head, preset buttons and sliders
+    from mjstudio.library import anatomy as A
+    ed.new("face")
+    A.build_head(ed, None, pos=(0, 0, 1.6), neck=False, face=True)
+    app.processEvents()
+    fp = win.face
+    assert fp.rig is not None and "smile" in fp.sliders
+    fp.apply_preset("smile")
+    assert fp.sliders["smile"].value() == 100
+    fp.sliders["blink_left"].setValue(100)
+    assert fp.rig.get("blink_left") == pytest.approx(1.0)
+    fp.jaw.setValue(50)
+    j = ed.joint_id("jaw_open")
+    assert ed.data.qpos[ed.model.jnt_qposadr[j]] == pytest.approx(0.5 * ed.model.jnt_range[j][1], rel=1e-3)
+    fp.eye[("left", "yaw")].setValue(200)      # 20 deg, linked -> both eyes
+    assert ed.get_qpos("eye_right_yaw")[0] == pytest.approx(np.radians(20), abs=1e-3)
+    _render(app, win)
+    m, dd = ed.model, ed.data
+    assert m.nskin == 1

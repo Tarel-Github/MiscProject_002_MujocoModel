@@ -21,7 +21,10 @@ from ..library import anatomy
 from ..core.doc import MjcfDoc, MjcfError
 from ..core.editor import Editor
 from ..core.sim import Simulator
-from .dialogs import JointGroupDialog, LibraryDialog, PickBodyDialog
+from ..core import meshops
+from ..core import meshes as M
+from .dialogs import JointGroupDialog, LibraryDialog, MeshImportDialog, PickBodyDialog
+from .facepanel import FacePanel
 from .jointpanel import JointPanel
 from .logpanel import LogPanel
 from .props import PropsPanel
@@ -52,14 +55,17 @@ class MainWindow(QMainWindow):
         self.props = PropsPanel(self.ed)
         self.joints = JointPanel(self.ed, groups=lambda: self.project.groups if self.project else [])
         self.simp = SimPanel(self.ed, self.sim)
+        self.face = FacePanel(self.ed, self.sim)
         dt = self._dock("Hierarchy", self.tree, Qt.LeftDockWidgetArea)
         dp = self._dock("Properties", self.props, Qt.RightDockWidgetArea)
         self.resizeDocks([dt, dp], [330, 340], Qt.Horizontal)
         dj = self._dock("Joints", self.joints, Qt.BottomDockWidgetArea)
         ds = self._dock("Simulation", self.simp, Qt.BottomDockWidgetArea)
         dl = self._dock("Log", self.log_panel, Qt.BottomDockWidgetArea)
+        df = self._dock("Face", self.face, Qt.BottomDockWidgetArea)
         self.tabifyDockWidget(dj, ds)
-        self.tabifyDockWidget(ds, dl)
+        self.tabifyDockWidget(ds, df)
+        self.tabifyDockWidget(df, dl)
         dj.raise_()
         self.status_compile = QLabel()
         self.statusBar().addPermanentWidget(self.status_compile)
@@ -161,6 +167,19 @@ class MainWindow(QMainWindow):
         self._act(mm, "Replace selected body with part…", self.replace_with_part)
         mm.addSeparator()
         self._act(mm, "&Recompile", self.ed.recompile, "F5")
+        # ---- Mesh
+        me = mb.addMenu("Me&sh")
+        self._act(me, "&Import mesh (OBJ / STL / GLB)…", self.import_mesh_file, "Ctrl+Shift+I")
+        pm = me.addMenu("Add mesh &primitive")
+        for t in M.PRIMITIVES:
+            self._act(pm, t, lambda t=t: self._add(lambda p: meshops.create_primitive_mesh(self.ed, p, t)["geoms"][0]))
+        me.addSeparator()
+        self.a_meshedit = self._act(me, "&Edit vertices of selected mesh geom (toggle)", self.toggle_mesh_edit, "Tab")
+        me.addAction("(in edit mode: click vertex, Shift+click add, W move, Del delete, F face from 3, P add vertex"
+                     " in clicked face, Esc exit)").setEnabled(False)
+        me.addSeparator()
+        self._act(me, "E&xport mesh of selected geom…", self.export_mesh)
+        self._act(me, "&Duplicate mesh asset of selected geom", self.duplicate_mesh)
         # ---- Joint
         j = mb.addMenu("&Joint")
         for t in ("hinge", "slide", "ball", "free"):
@@ -210,7 +229,7 @@ class MainWindow(QMainWindow):
             self._act(sg, f"Group {i}", lambda c, i=i: self._group("sitegroup", i, c), checkable=True,
                       checked=bool(self.view.opt.sitegroup[i]))
         v.addSeparator()
-        self._act(v, "Frame selection", self.view.frame_selection, "F")
+        self._act(v, "Frame selection (mesh edit: face from 3 vertices)", self._key_f, "F")
         self._act(v, "Reset camera", self.view.reset_camera, "Home")
         # ---- tools (gizmo) + toolbar
         tb = QToolBar("Main")
@@ -343,6 +362,10 @@ class MainWindow(QMainWindow):
             self.ed.select([e])
 
     def delete_sel(self):
+        if self.view.mesh_mode is not None:      # Delete acts on vertices/faces in mesh edit mode
+            self.view.mesh_mode.delete()
+            self.view.update()
+            return
         sel = [e for e in self.ed.selection if e.getparent() is not None and e.tag not in ("worldbody",)]
         if not sel:
             return
@@ -503,7 +526,7 @@ class MainWindow(QMainWindow):
             if not self.project_save_as():
                 return
         self.project.set_group(dlg.result_group())
-        self.project.save(self.ed.doc, package=False)
+        self.project.save(self.ed.doc, package=False, rigs=self.ed.rigs)
         self.joints.rebuild()
 
     def project_open(self):
@@ -519,7 +542,8 @@ class MainWindow(QMainWindow):
             return
         self.sim.pause()
         self.project = prj
-        self.ed.set_doc(doc)
+        self.view.set_mesh_mode(None)
+        self.ed.set_doc(doc, prj.load_rigs())
         self.protected = False
         self.view.reset_camera()
         self.joints.rebuild()
@@ -532,7 +556,7 @@ class MainWindow(QMainWindow):
         prj = self.project if self.project is not None else Project(d)
         prj.root = Path(d).resolve()
         try:
-            notes = prj.save(self.ed.doc, package=True)
+            notes = prj.save(self.ed.doc, package=True, rigs=self.ed.rigs)
         except OSError as ex:
             QMessageBox.critical(self, "Save project", str(ex))
             return False
@@ -554,6 +578,75 @@ class MainWindow(QMainWindow):
             log.warning("missing resource: %s/%s -> %s", lbl, k, p)
         QMessageBox.warning(self, "Resources", f"{len(miss)} missing file(s):\n" +
                             "\n".join(f"{lbl} ({k}): {p}" for lbl, k, p in miss[:20]))
+
+    def _key_f(self):
+        if self.view.mesh_mode is not None:
+            self.view.mesh_mode.make_face()
+            self.view.update()
+        else:
+            self.view.frame_selection()
+
+    # ================================================================ meshes
+    def _sel_mesh_geom(self):
+        t = self._target()
+        if t is not None and t.tag == "geom" and meshops.geom_mesh_elem(self.ed, t) is not None:
+            return t
+        return None
+
+    def import_mesh_file(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Import mesh", os.getcwd(),
+                                              "Meshes (*.obj *.stl *.glb *.gltf);;All files (*)")
+        if not path:
+            return
+        t = self._target()
+        dlg = MeshImportDialog(path, t is not None and t.tag != "worldbody", self)
+        if dlg.exec() != MeshImportDialog.Accepted:
+            return
+        new_body = bool(dlg.mode.currentData())
+        out = self._guard(lambda: meshops.import_mesh(
+            self.ed, path, parent=self._attach_parent(), new_body=new_body, name=dlg.name.text().strip() or None,
+            units=dlg.units.currentText(), axes=dlg.axes.currentData(), collision=dlg.collision.currentText()))
+        if out:
+            self.ed.select([out["body"] if new_body else out["geoms"][0]])
+
+    def toggle_mesh_edit(self):
+        if self.view.mesh_mode is not None:
+            self.view.set_mesh_mode(None)
+            self.statusBar().showMessage("Mesh edit mode off", 2000)
+            return
+        g = self._sel_mesh_geom()
+        if g is None:
+            QMessageBox.information(self, "Edit mesh", "Select a mesh geom first (Pick geom mode helps).")
+            return
+        from .meshedit import MeshEditMode
+        mode = self._guard(lambda: MeshEditMode(self.view, g))
+        if mode is None:
+            return
+        self.view.set_mesh_mode(mode)
+        self.view.setFocus()
+        self.statusBar().showMessage("Mesh edit mode: click vertices (Shift adds), W/E gizmo, Del, F, P, Esc", 6000)
+
+    def export_mesh(self):
+        g = self._sel_mesh_geom()
+        if g is None:
+            QMessageBox.information(self, "Export mesh", "Select a mesh geom first.")
+            return
+        me = meshops.geom_mesh_elem(self.ed, g)
+        path, _ = QFileDialog.getSaveFileName(self, "Export mesh", f"{self.ed.doc.obj_name(me)}.obj",
+                                              "OBJ (*.obj);;STL (*.stl)")
+        if path:
+            p = self._guard(lambda: meshops.export_mesh(self.ed, me, path))
+            if p:
+                log.info("Exported mesh to %s", p)
+
+    def duplicate_mesh(self):
+        g = self._sel_mesh_geom()
+        if g is None:
+            QMessageBox.information(self, "Duplicate mesh", "Select a mesh geom first.")
+            return
+        me = self._guard(lambda: meshops.duplicate_mesh_asset(self.ed, meshops.geom_mesh_elem(self.ed, g)))
+        if me is not None:
+            self._guard(lambda: self.ed.set_attr(g, "mesh", me.get("name"), "Use duplicated mesh"))
 
     # ================================================================ context menu
     def _context_menu(self, e, gpos):
@@ -615,6 +708,7 @@ class MainWindow(QMainWindow):
 
     def open_path(self, path) -> bool:
         self.sim.pause()
+        self.view.set_mesh_mode(None)
         try:
             self.ed.open(path)
         except (MjcfError, OSError) as ex:
@@ -634,7 +728,7 @@ class MainWindow(QMainWindow):
     def file_save(self) -> bool:
         if self.project is not None:
             try:
-                for n in self.project.save(self.ed.doc, package=True):
+                for n in self.project.save(self.ed.doc, package=True, rigs=self.ed.rigs):
                     log.info("%s", n)
             except OSError as ex:
                 QMessageBox.critical(self, "Save project", str(ex))

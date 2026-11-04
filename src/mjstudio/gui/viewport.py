@@ -265,6 +265,8 @@ class Viewport(QOpenGLWidget):
         self._last = None
         self._drag = None
         self._ts: TransformSession | None = None
+        self.mesh_mode = None             # gui.meshedit.MeshEditMode while editing a mesh
+        self._uploads: set = set()
         self.setFocusPolicy(Qt.StrongFocus)
         self.setMouseTracking(True)
         self.setMinimumSize(320, 240)
@@ -334,6 +336,10 @@ class Viewport(QOpenGLWidget):
         for hook in self.scene_hooks:
             hook(m, d, scn)
         vp = mujoco.MjrRect(0, 0, w, h)
+        for mid in self._uploads:
+            if 0 <= mid < m.nmesh:
+                mujoco.mjr_uploadMesh(m, con, mid)
+        self._uploads.clear()
         mujoco.mjr_setBuffer(mujoco.mjtFramebuffer.mjFB_OFFSCREEN, con)
         mujoco.mjr_render(vp, scn, con)
         self._proj = CamProj(scn, w, h)
@@ -345,6 +351,16 @@ class Viewport(QOpenGLWidget):
         GL.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, self.defaultFramebufferObject())
         GL.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL.GL_COLOR_BUFFER_BIT, GL.GL_NEAREST)
         GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, self.defaultFramebufferObject())
+
+    def request_mesh_upload(self, mesh_id: int) -> None:
+        self._uploads.add(int(mesh_id))
+        self.update()
+
+    def set_mesh_mode(self, mode) -> None:
+        if self.mesh_mode is not None:
+            self.mesh_mode.cancel_drag()
+        self.mesh_mode = mode
+        self.update()
 
     def write_rigs(self, m, d, scn) -> None:
         """Expression rigs: evaluate time tracks at the simulation time and deform their skins."""
@@ -446,8 +462,16 @@ class Viewport(QOpenGLWidget):
             GL.glActiveTexture(GL.GL_TEXTURE0)
             GL.glEnable(GL.GL_BLEND)
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-            self._draw_selected_extras(m, d, proj, dpr)
-            fr = self._sel_frame() if self._drag is None else (self.gizmo.origin, self.gizmo.R)
+            if self.mesh_mode is not None:
+                self.mesh_mode.draw(proj, dpr)
+            else:
+                self._draw_selected_extras(m, d, proj, dpr)
+            if self._drag is not None:
+                fr = (self.gizmo.origin, self.gizmo.R)
+            elif self.mesh_mode is not None:
+                fr = self.mesh_mode.frame()
+            else:
+                fr = self._sel_frame()
             self.gizmo.visible = fr is not None
             if fr is not None:
                 if self._drag is None:
@@ -678,6 +702,14 @@ class Viewport(QOpenGLWidget):
             p0 = mx.ray_plane(ro, rd, o, a)
             st["v0"] = (p0 - o) if p0 is not None else None
             st["s0"] = (sx, sy)
+        if self.mesh_mode is not None:
+            if not self.mesh_mode.sel:
+                return
+            self.mesh_mode.begin_drag()
+            self._ts = _MeshDrag(self.mesh_mode)
+            self._drag = st
+            self.gizmo.active = handle
+            return
         self._ts = TransformSession(self.ed, list(self.ed.selection))
         if not self._ts.items:
             self._ts = None
@@ -766,6 +798,13 @@ class Viewport(QOpenGLWidget):
             self.update()
             return
         moved = self._press is not None and (ev.position() - self._press).manhattanLength() > 4
+        if ev.button() == Qt.LeftButton and not moved and self.mesh_mode is not None and self._proj is not None:
+            sx, sy = self._dev(ev.position())
+            self.mesh_mode.pick(self._proj, sx, sy, bool(ev.modifiers() & Qt.ShiftModifier))
+            self._press = None
+            self._last = None
+            self.update()
+            return
         if ev.button() == Qt.LeftButton and not moved:
             sx, sy = self._dev(ev.position())
             e, _ = self.pick(sx, sy)
@@ -790,6 +829,20 @@ class Viewport(QOpenGLWidget):
 
     def keyPressEvent(self, ev) -> None:
         k = ev.key()
+        if self.mesh_mode is not None and self._ts is None:
+            if k in (Qt.Key_Delete, Qt.Key_Backspace):
+                self.mesh_mode.delete()
+            elif k == Qt.Key_F:
+                self.mesh_mode.make_face()
+            elif k == Qt.Key_P:
+                self.mesh_mode.poke()
+            elif k == Qt.Key_Escape:
+                self.set_mesh_mode(None)
+            else:
+                super().keyPressEvent(ev)
+                return
+            self.update()
+            return
         if k == Qt.Key_Escape and self._ts is not None:
             self._ts.cancel()
             self._ts = None
@@ -835,3 +888,21 @@ class Viewport(QOpenGLWidget):
     def grab_image(self):
         """Render and return a QImage of the viewport (works offscreen)."""
         return self.grabFramebuffer()
+
+
+class _MeshDrag:
+    """Adapter giving the mesh edit mode the TransformSession interface used by the gizmo."""
+
+    def __init__(self, mode):
+        self.mode = mode
+        self.last = (np.zeros(3), mx.QID.copy(), np.zeros(3))
+
+    def update(self, dpos, dq, pivot):
+        self.last = (np.asarray(dpos, float), np.asarray(dq, float), np.asarray(pivot, float))
+        self.mode.update_drag(*self.last)
+
+    def commit(self, text=""):
+        self.mode.commit_drag(*self.last)
+
+    def cancel(self):
+        self.mode.cancel_drag()

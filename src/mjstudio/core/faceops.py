@@ -76,6 +76,8 @@ def rig_from_gltf(path: str | Path, name: str | None = None, head_body: str = "h
     for k, d in gm.morph.items():
         rig.add_key(k, gltf.vec_to_mujoco(d, gm.world) * scale)
         rig.add_param(ExprParam(k, keys={k: 1.0}, group="shape keys"))
+    from .expr import DEFAULT_PRESETS
+    rig.presets = {k: {p: v for p, v in d.items() if p in rig.params} for k, d in DEFAULT_PRESETS.items()}
     rig.meta["source"] = str(path)
     rig.meta["joints"] = gm.joint_names
     log.info("face rig '%s' from %s: %d vertices, %d shape keys, jaw-weighted vertices: %d",

@@ -112,3 +112,17 @@ def test_inline_mesh_edit(ed):
     d.move_vertices([3], [0, 0, 1])
     MO.set_mesh_data(ed, me, d)
     assert ed.result.ok and me.get("vertex").endswith("0 0 2")
+
+
+def test_import_blender_glb_as_jaw_mesh(ed):
+    """'턱에 외부 Blender Mesh 부착': a Blender GLB attached to a jaw body as visual mesh."""
+    from pathlib import Path
+    from mjstudio.library import anatomy as A
+    A.build_head(ed, None, pos=(0, 0, 1.5), neck=False)
+    glb = Path(__file__).resolve().parents[1] / "examples" / "assets" / "face_blender.glb"
+    jaw = ed.doc.find_named("body", "jaw")
+    r = MO.import_mesh(ed, glb, parent=jaw, new_body=False, collision="none", name="jaw_mesh")
+    assert ed.result.ok, ed.result.error
+    g = r["geoms"][0]
+    assert g.getparent() is jaw and ed.model.geom_bodyid[ed.idmap.id(g)] == ed.idmap.id(jaw)
+    assert r["stats"][0] > 4000

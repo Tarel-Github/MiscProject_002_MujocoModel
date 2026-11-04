@@ -221,14 +221,5 @@ def build_face_rig(name: str = "face", scale: float = 1.0, head_body: str = "hea
 
 
 def default_presets() -> dict:
-    return {
-        "neutral": {},
-        "smile": {"smile": 1.0, "eye_squint_left": 0.35, "eye_squint_right": 0.35},
-        "frown": {"brow_lower_left": 1.0, "brow_lower_right": 1.0, "mouth_frown_left": 0.8,
-                  "mouth_frown_right": 0.8, "eye_squint_left": 0.3, "eye_squint_right": 0.3},
-        "surprise": {"brow_raise_left": 1.0, "brow_raise_right": 1.0, "eye_wide_left": 1.0, "eye_wide_right": 1.0,
-                     "lips_part": 0.7},
-        "blink": {"blink_left": 1.0, "blink_right": 1.0},
-        "wink_left": {"blink_left": 1.0, "mouth_smile_left": 0.5},
-        "wink_right": {"blink_right": 1.0, "mouth_smile_right": 0.5},
-    }
+    from ..core.expr import DEFAULT_PRESETS
+    return {k: dict(v) for k, v in DEFAULT_PRESETS.items()}

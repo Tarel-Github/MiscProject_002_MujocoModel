@@ -26,6 +26,19 @@ from . import mathx as mx
 
 OBJ = mujoco.mjtObj
 
+# expression presets (parameter -> value); presets referring to missing parameters skip them
+DEFAULT_PRESETS = {
+    "neutral": {},
+    "smile": {"smile": 1.0, "eye_squint_left": 0.35, "eye_squint_right": 0.35},
+    "frown": {"brow_lower_left": 1.0, "brow_lower_right": 1.0, "mouth_frown_left": 0.8,
+              "mouth_frown_right": 0.8, "eye_squint_left": 0.3, "eye_squint_right": 0.3},
+    "surprise": {"brow_raise_left": 1.0, "brow_raise_right": 1.0, "eye_wide_left": 1.0, "eye_wide_right": 1.0,
+                 "lips_part": 0.7},
+    "blink": {"blink_left": 1.0, "blink_right": 1.0},
+    "wink_left": {"blink_left": 1.0, "mouth_smile_left": 0.5},
+    "wink_right": {"blink_right": 1.0, "mouth_smile_right": 0.5},
+}
+
 
 @dataclass
 class ControlBone:
@@ -325,8 +338,9 @@ class FaceController:
     they set the joint positions directly (kinematic preview)."""
 
     def __init__(self, model: mujoco.MjModel, data: mujoco.MjData, rig: FaceRig | None,
-                 eye_joints: dict | None = None, jaw_joint: str = "jaw_open"):
+                 eye_joints: dict | None = None, jaw_joint: str = "jaw_open", kinematic: bool = False):
         self.m, self.d, self.rig = model, data, rig
+        self.kinematic = kinematic   # also set joint positions directly (editing without simulation)
         self.eye_joints = eye_joints or {s: (f"eye_{s}_yaw", f"eye_{s}_pitch") for s in ("left", "right")}
         self.jaw_joint = jaw_joint
 
@@ -354,7 +368,7 @@ class FaceController:
                 and self.m.actuator_trnid[i, 0] == j]
         if acts:
             self.d.ctrl[acts[0]] = q
-        else:
+        if not acts or self.kinematic:
             self.d.qpos[self.m.jnt_qposadr[j]] = q
         return q
 
