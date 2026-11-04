@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mjstudio"
+version = "0.1.0"
+description = "MuJoCo Model Studio - visual MJCF model editor and assembler"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+dependencies = [
+  "mujoco>=3.0.1",
+  "numpy>=1.24",
+  "PySide6>=6.5",
+  "lxml>=4.9",
+  "PyOpenGL>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+mjstudio = "mjstudio.gui.app:main"
+mjstudio-validate = "mjstudio.cli:validate_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
