@@ -20,7 +20,8 @@ def configure_gl() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv if argv is None else argv)
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
+    logging.getLogger("mjstudio").setLevel(logging.INFO)
     configure_gl()
     from PySide6.QtWidgets import QApplication
     from .theme import apply_dark
@@ -33,6 +34,10 @@ def main(argv: list[str] | None = None) -> int:
     files = [a for a in argv[1:] if not a.startswith("-")]
     if files:
         w.open_path(files[0])
+    for a in argv[1:]:
+        if a.startswith("--quit-after="):  # automated smoke runs
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(int(a.split("=", 1)[1]), app.quit)
     return app.exec()
 
 
