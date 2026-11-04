@@ -108,10 +108,22 @@ class Project:
         doc = MjcfDoc.load(prj.model_path)
         return prj, doc
 
-    def save(self, doc: MjcfDoc, package: bool = True) -> list[str]:
-        """Write model.xml (+ packaged assets) and project.json. Returns notes."""
+    def load_rigs(self) -> dict:
+        from .expr import FaceRig
+        out = {}
+        for name, meta in self.data.get("expressions", {}).items():
+            try:
+                out[name] = FaceRig.load(meta, self.root / "expressions")
+            except (OSError, KeyError, ValueError) as ex:
+                log.error("cannot load expression rig %s: %s", name, ex)
+        return out
+
+    def save(self, doc: MjcfDoc, package: bool = True, rigs: dict | None = None) -> list[str]:
+        """Write model.xml (+ packaged assets), expression rigs and project.json. Returns notes."""
         self.root.mkdir(parents=True, exist_ok=True)
         notes: list[str] = []
+        if rigs is not None:
+            self.data["expressions"] = {n: r.save(self.root / "expressions") for n, r in rigs.items()}
         if package:
             notes += package_assets(doc, self.root)
         notes += doc.save(self.model_path)

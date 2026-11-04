@@ -58,6 +58,8 @@ class Editor:
         self.compiled = Signal()          # (CompileResult)
         self.selection_changed = Signal() # (list[Element])
         self.state_changed = Signal()     # ()  data/pose changed
+        self.rigs: dict = {}              # name -> expr.FaceRig (expression rigs; stored in project.json)
+        self.rigs_changed = Signal()      # ()
         if auto_compile:
             self.recompile()
 
@@ -70,8 +72,9 @@ class Editor:
     def idmap(self):
         return self.valid.idmap if self.valid else None
 
-    def set_doc(self, doc: MjcfDoc) -> None:
+    def set_doc(self, doc: MjcfDoc, rigs: dict | None = None) -> None:
         self.doc = doc
+        self.rigs = dict(rigs or {})
         self.undo.clear()
         self.selection = []
         self.valid = None
@@ -83,6 +86,7 @@ class Editor:
         self.doc_loaded.emit()
         self.selection_changed.emit(self.selection)
         self.recompile()
+        self.rigs_changed.emit()
 
     def new(self, model: str = "model") -> None:
         self.set_doc(MjcfDoc.new(model))

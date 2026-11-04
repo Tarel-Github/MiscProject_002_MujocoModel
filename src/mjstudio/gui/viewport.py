@@ -330,6 +330,7 @@ class Viewport(QOpenGLWidget):
             mujoco.mjr_resizeOffscreen(max(w, con.offWidth), max(h, con.offHeight), con)
         mujoco.mjv_updateScene(m, d, self.opt, self.pert, self.cam, mujoco.mjtCatBit.mjCAT_ALL, scn)
         self._post_scene(m, d, scn)
+        self.write_rigs(m, d, scn)
         for hook in self.scene_hooks:
             hook(m, d, scn)
         vp = mujoco.MjrRect(0, 0, w, h)
@@ -344,6 +345,18 @@ class Viewport(QOpenGLWidget):
         GL.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, self.defaultFramebufferObject())
         GL.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL.GL_COLOR_BUFFER_BIT, GL.GL_NEAREST)
         GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, self.defaultFramebufferObject())
+
+    def write_rigs(self, m, d, scn) -> None:
+        """Expression rigs: evaluate time tracks at the simulation time and deform their skins."""
+        if not self.opt.flags[mujoco.mjtVisFlag.mjVIS_SKIN]:
+            return
+        for rig in list(self.ed.rigs.values()):
+            if rig.tracks:
+                rig.evaluate_tracks(d.time)
+            try:
+                rig.write_scene(m, d, scn)
+            except (KeyError, ValueError, IndexError):
+                pass
 
     # ------------------------------------------------------------- scene edits
     def _sel_ids(self):

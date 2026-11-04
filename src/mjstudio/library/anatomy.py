@@ -309,7 +309,8 @@ def _detailed_toes(ed, fore, S, s, zfo, mt1, mt5, sensors, actuators):
 
 # ======================================================================== head
 def build_head(ed: Editor, parent: Element | None, pos=(0, 0, 0), scale: float = 1.0, jaw_slide: bool = False,
-               sensors: bool = True, actuators: bool = True, neck: bool = True) -> Element:
+               sensors: bool = True, actuators: bool = True, neck: bool = True, face: bool = False,
+               face_name: str = "face") -> Element:
     """Head with two independently actuated eyes (yaw + pitch hinges each) and a
     hinged mandible. Frame: origin at the head centre, x forward, y left, z up.
       eye_<side>_yaw   [look left]  -45..45 deg      eye_<side>_pitch [look up] -45..30 deg
@@ -324,7 +325,12 @@ def build_head(ed: Editor, parent: Element | None, pos=(0, 0, 0), scale: float =
             _hinge(ed, head, "neck_yaw", (0, 0, 1), -70, 70, pos=(0, 0, -0.09 * s), damping=1.0, armature=0.01)
             _hinge(ed, head, "neck_roll", (1, 0, 0), -35, 35, pos=(0, 0, -0.09 * s), damping=1.0, armature=0.01)
         ops.add_geom(ed, head, "ellipsoid", "skull", size=mx.fmt_vec(np.array([0.095, 0.075, 0.1]) * s),
-                     pos=(-0.01 * s, 0, 0.01 * s), rgba=SKIN_RGBA, mass=f"{4.0 * s ** 3:.4g}")
+                     pos=(-0.01 * s, 0, 0.01 * s), rgba=SKIN_RGBA, mass=f"{4.0 * s ** 3:.4g}",
+                     group="3" if face else None)
+        if face:  # dark oral cavity visible when the mouth opens
+            ops.add_geom(ed, head, "ellipsoid", "oral_cavity", size=mx.fmt_vec(np.array([0.024, 0.026, 0.016]) * s),
+                         pos=(0.034 * s, 0, -0.058 * s), rgba="0.22 0.05 0.06 1", contype="0", conaffinity="0",
+                         mass="0")
         ops.add_site(ed, head, "head_imu", pos=(0, 0, 0.03 * s), size=0.005)
         for side in ("left", "right"):
             S = Side(side)
@@ -346,12 +352,13 @@ def build_head(ed: Editor, parent: Element | None, pos=(0, 0, 0), scale: float =
         if jaw_slide:
             ops.add_joint(ed, jaw, "slide", "jaw_protrude", axis=(1, 0, 0), range_rad=(0.0, 0.010),
                           damping="2", armature="0.001")
+        hide = {"group": "3"} if face else {}   # the face skin shows the jaw instead
         ops.add_geom(ed, jaw, "capsule", "mandible", size=mx.fmt_num(0.012 * s),
                      fromto=mx.fmt_vec(np.array([0.0, 0.045, -0.01, 0.07, 0.0, -0.06]) * s), rgba=SKIN_RGBA,
-                     mass=f"{0.1 * s ** 3:.4g}", contype="0", conaffinity="0")
+                     mass=f"{0.1 * s ** 3:.4g}", contype="0", conaffinity="0", **hide)
         ops.add_geom(ed, jaw, "capsule", size=mx.fmt_num(0.012 * s),
                      fromto=mx.fmt_vec(np.array([0.0, -0.045, -0.01, 0.07, 0.0, -0.06]) * s), rgba=SKIN_RGBA,
-                     mass=f"{0.1 * s ** 3:.4g}", contype="0", conaffinity="0")
+                     mass=f"{0.1 * s ** 3:.4g}", contype="0", conaffinity="0", **hide)
         ops.add_site(ed, jaw, "chin", pos=(0.075 * s, 0, -0.065 * s), size=0.004)
         if actuators:
             for side in ("left", "right"):
@@ -369,6 +376,10 @@ def build_head(ed: Editor, parent: Element | None, pos=(0, 0, 0), scale: float =
             ops.add_sensor(ed, "jointpos", joint="jaw_open")
             ops.add_sensor(ed, "gyro", name="head_gyro", site="head_imu")
             ops.add_sensor(ed, "accelerometer", name="head_accel", site="head_imu")
+    if face:
+        from ..core.faceops import attach_face_rig
+        from .face import build_face_rig
+        attach_face_rig(ed, build_face_rig(face_name, scale, head.get("name"), "jaw"))
     return head
 
 

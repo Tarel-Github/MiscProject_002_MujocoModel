@@ -172,12 +172,48 @@ class MjcfDoc:
         if relocate_assets and path.parent != self.base_dir:
             notes = self.relocate(path.parent)
         path.parent.mkdir(parents=True, exist_ok=True)
+        notes += self._write_mem_assets(path.parent)
         text = self.to_string()
         tmp = path.with_suffix(path.suffix + ".tmp")
         tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, path)
         self.path = path
         self.base_dir = path.parent
+        return notes
+
+    def _write_mem_assets(self, model_dir: Path) -> list[str]:
+        """Write generated/edited asset files into <model_dir>/meshes and point the model at them."""
+        notes: list[str] = []
+        if not self.mem_assets:
+            return notes
+        model_dir = Path(model_dir).resolve()
+        old_base = self.base_dir
+        self.base_dir = model_dir           # asset_dir() must be evaluated for the new location
+        try:
+            out = model_dir / "meshes"
+            mesh_dir = self.asset_dir("mesh")
+            for key in list(self.mem_assets):
+                data = self.mem_assets[key]
+                target = out / Path(key).name
+                mine = (mesh_dir / key).resolve() == target.resolve()
+                i = 1
+                while target.exists() and not mine and target.read_bytes() != data:
+                    target = out / f"{Path(key).stem}_{i}{Path(key).suffix}"
+                    i += 1
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+                try:
+                    rel = Path(os.path.relpath(target, mesh_dir)).as_posix()
+                except ValueError:
+                    rel = target.as_posix()
+                for tag in ("mesh", "hfield", "skin"):
+                    for e in self.root.iter(tag):
+                        if e.get("file") == key:
+                            e.set("file", rel)
+                self.mem_assets[rel] = self.mem_assets.pop(key)
+                notes.append(f"wrote {target}")
+        finally:
+            self.base_dir = old_base
         return notes
 
     def relocate(self, new_base: Path) -> list[str]:
