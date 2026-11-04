@@ -140,7 +140,7 @@ class TransformSession:
         mujoco.mj_forward(self.ed.model, self.ed.data)
         self.ed.state_changed.emit()
 
-    def commit(self, text: str = "Transform") -> None:
+    def commit(self, text: str = "위치·회전 변경") -> None:
         if not self.ok or not self.items:
             return
         moved = [it for it in self.items

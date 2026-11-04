@@ -81,6 +81,25 @@ def apply_dark(app: QApplication) -> None:
         p.setColor(QPalette.Disabled, role, QColor("#5b5f66"))
     app.setPalette(p)
     app.setStyleSheet(STYLE)
+    _hangul_font(app)
+
+
+HANGUL_FONTS = ("Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans CJK KR", "Noto Sans KR",
+                "NanumGothic", "Nanum Gothic", "UnDotum")
+
+
+def _hangul_font(app: QApplication) -> None:
+    """한글이 확실히 보이도록 한글 글꼴을 대체 글꼴로 지정합니다 (영문은 플랫폼 기본 글꼴 유지).
+    Windows 11: Segoe UI + 맑은 고딕, macOS: Apple SD Gothic Neo, Linux: Noto Sans CJK KR / 나눔고딕."""
+    from PySide6.QtGui import QFontDatabase
+    have = set(QFontDatabase.families())
+    fams = [f for f in HANGUL_FONTS if f in have]
+    if not fams:
+        return
+    f = app.font()
+    base = f.family()
+    f.setFamilies(([base] if base and base not in fams else []) + fams)
+    app.setFont(f)
 
 
 def tag_color(tag: str, parent_tag: str | None = None) -> str:

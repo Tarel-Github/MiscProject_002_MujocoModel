@@ -66,7 +66,7 @@ class MjcfDoc:
     def __init__(self, root: Element, path: str | os.PathLike | None = None,
                  base_dir: str | os.PathLike | None = None):
         if root.tag != "mujoco":
-            raise MjcfError(f"root element must be <mujoco>, got <{root.tag}>")
+            raise MjcfError(f"최상위 요소는 <mujoco>여야 합니다 (현재 <{root.tag}>)")
         self.root = root
         self.path: Path | None = Path(path).resolve() if path else None
         if base_dir is not None:
@@ -86,7 +86,7 @@ class MjcfDoc:
         try:
             tree = etree.parse(str(path), _PARSER)
         except etree.XMLSyntaxError as ex:
-            raise MjcfError(f"XML syntax error in {path}: {ex}") from ex
+            raise MjcfError(f"XML 문법 오류 ({path}): {ex}") from ex
         doc = cls(tree.getroot(), path=path)
         doc._flatten_includes()
         return doc
@@ -97,7 +97,7 @@ class MjcfDoc:
         try:
             root = etree.fromstring(text.encode("utf-8"), _PARSER)
         except etree.XMLSyntaxError as ex:
-            raise MjcfError(f"XML syntax error: {ex}") from ex
+            raise MjcfError(f"XML 문법 오류: {ex}") from ex
         doc = cls(root, path=path, base_dir=base_dir)
         doc._flatten_includes()
         return doc
@@ -130,21 +130,21 @@ class MjcfDoc:
     def _flatten_includes(self, depth: int = 0) -> None:
         """Inline <include file=...> (MuJoCo resolves paths relative to the main file)."""
         if depth > 20:
-            raise MjcfError("include nesting too deep (cycle?)")
+            raise MjcfError("include가 너무 깊게 중첩됨 (순환 참조?)")
         incs = [e for e in self.root.iter("include")]
         if not incs:
             return
         for inc in incs:
             f = inc.get("file")
             if not f:
-                raise MjcfError("<include> without file attribute")
+                raise MjcfError("file 속성이 없는 <include>")
             fp = (self.base_dir / f) if not os.path.isabs(f) else Path(f)
             try:
                 sub = etree.parse(str(fp), _PARSER).getroot()
             except (OSError, etree.XMLSyntaxError) as ex:
-                raise MjcfError(f"cannot include {fp}: {ex}") from ex
+                raise MjcfError(f"{fp}을(를) include할 수 없음: {ex}") from ex
             if sub.tag != "mujoco":
-                raise MjcfError(f"included file {fp} must have a <mujoco> root")
+                raise MjcfError(f"include한 파일 {fp}의 최상위 요소가 <mujoco>가 아닙니다")
             parent = inc.getparent()
             idx = parent.index(inc)
             parent.remove(inc)
@@ -211,7 +211,7 @@ class MjcfDoc:
                         if e.get("file") == key:
                             e.set("file", rel)
                 self.mem_assets[rel] = self.mem_assets.pop(key)
-                notes.append(f"wrote {target}")
+                notes.append(f"저장: {target}")
         finally:
             self.base_dir = old_base
         return notes
@@ -455,6 +455,24 @@ class MjcfDoc:
         for k, v in e.attrib.items():
             out[k] = (v, "explicit")
         return out
+
+    def class_without(self, e: Element, attr: str, skip: tuple = ()) -> tuple[str | None, dict] | None:
+        """How to stop *e* from inheriting *attr* from its default classes: returns
+        (class to use, attributes to set explicitly so nothing else changes) or None when
+        the attribute is not inherited. 'skip' attributes are not copied over."""
+        r = self.resolved(copy_without(e, attr))     # what remains once the explicit value is gone
+        src = r.get(attr, (None, ""))[1]
+        if not src.startswith("class:"):
+            return None
+        chain = self.default_chain(self.elem_class(e))
+        names = [d.get("class") or "main" for d in chain]
+        k = names.index(src[6:])
+        if k == 0:
+            raise MjcfError(f"'{attr}'이(가) main 기본 클래스에 지정되어 있어 피할 수 없습니다")
+        skipped = set(names[k:])
+        explicit = {a: v for a, (v, so) in r.items()
+                    if so.startswith("class:") and so[6:] in skipped and a not in (attr,) + tuple(skip)}
+        return names[k - 1], explicit
 
     def get(self, e: Element, key: str, builtin: bool = True) -> str | None:
         r = self.resolved(e).get(key)

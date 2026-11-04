@@ -230,15 +230,15 @@ def validate_steps(model: mujoco.MjModel, nsteps: int = 200) -> list[str]:
     for i in range(nsteps):
         mujoco.mj_step(model, data)
         if not (np.all(np.isfinite(data.qpos)) and np.all(np.isfinite(data.qvel))):
-            issues.append(f"non-finite state at step {i} (t={data.time:.4f}s)")
+            issues.append(f"{i}번째 스텝에서 상태값이 유한하지 않음 (t={data.time:.4f}s)")
             break
     for w in range(len(data.warning)):
         cnt = int(data.warning[w].number)
         if cnt:
-            issues.append(f"{mujoco.mjtWarning(w).name}: {cnt} time(s)")
+            issues.append(f"{mujoco.mjtWarning(w).name}: {cnt}회")
     vmax = float(np.max(np.abs(data.qvel))) if model.nv else 0.0
     if vmax > 1e3:
-        issues.append(f"very large joint velocity after {nsteps} steps: {vmax:.3g}")
+        issues.append(f"{nsteps} 스텝 후 관절 속도가 매우 큼: {vmax:.3g}")
     return issues
 
 

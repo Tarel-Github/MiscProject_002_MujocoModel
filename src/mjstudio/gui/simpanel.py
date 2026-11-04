@@ -1,4 +1,4 @@
-"""Simulation controls, actuator controls, sensor and contact read-outs."""
+"""시뮬레이션 조작, 액추에이터 제어, 센서·접촉 표시."""
 from __future__ import annotations
 
 import mujoco
@@ -29,24 +29,25 @@ class SimPanel(QWidget):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(4, 4, 4, 4)
         bar = QHBoxLayout()
-        self.play = QPushButton("▶ Play")
+        self.play = QPushButton("▶ 재생")
         self.play.setCheckable(True)
         self.play.toggled.connect(self._toggle)
         bar.addWidget(self.play)
-        b = QPushButton("Step")
+        b = QPushButton("한 스텝")
         b.clicked.connect(lambda: self.sim.step(1))
         bar.addWidget(b)
-        b = QPushButton("Reset")
+        b = QPushButton("초기화")
+        b.setToolTip("오른쪽에서 고른 상태(qpos0 또는 키프레임)로 되돌립니다")
         b.clicked.connect(self._reset)
         bar.addWidget(b)
-        bar.addWidget(QLabel("Speed"))
+        bar.addWidget(QLabel("속도"))
         self.speed = QComboBox()
-        for s in ("0.1x", "0.25x", "0.5x", "1x", "2x"):
-            self.speed.addItem(s)
-        self.speed.setCurrentText("1x")
-        self.speed.currentTextChanged.connect(lambda t: setattr(self.sim, "speed", float(t[:-1])))
+        for v in (0.1, 0.25, 0.5, 1.0, 2.0):
+            self.speed.addItem(f"{v:g}배", v)
+        self.speed.setCurrentIndex(3)
+        self.speed.currentIndexChanged.connect(lambda _i: setattr(self.sim, "speed", float(self.speed.currentData())))
         bar.addWidget(self.speed)
-        bar.addWidget(QLabel("Reset to"))
+        bar.addWidget(QLabel("초기화 상태"))
         self.key = QComboBox()
         bar.addWidget(self.key)
         self.status = QLabel()
@@ -57,24 +58,24 @@ class SimPanel(QWidget):
         lay.addWidget(self.tabs)
         # actuators
         self.act = QTableWidget(0, 3)
-        self.act.setHorizontalHeaderLabels(["Actuator", "Control", "ctrl"])
+        self.act.setHorizontalHeaderLabels(["액추에이터", "제어 (끌어서 조절)", "ctrl 값"])
         self.act.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.act.setColumnWidth(0, 170)
         self.act.verticalHeader().setVisible(False)
-        self.tabs.addTab(self.act, "Actuators")
+        self.tabs.addTab(self.act, "액추에이터")
         # sensors
         self.sens = QTableWidget(0, 3)
-        self.sens.setHorizontalHeaderLabels(["Sensor", "Type", "Value"])
+        self.sens.setHorizontalHeaderLabels(["센서", "종류", "값"])
         self.sens.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.sens.setColumnWidth(0, 170)
         self.sens.verticalHeader().setVisible(False)
-        self.tabs.addTab(self.sens, "Sensors")
+        self.tabs.addTab(self.sens, "센서")
         # contacts
         self.con = QTableWidget(0, 4)
-        self.con.setHorizontalHeaderLabels(["Geom 1", "Geom 2", "Normal force (N)", "Position"])
+        self.con.setHorizontalHeaderLabels(["형상 1", "형상 2", "수직 접촉력 (N)", "위치"])
         self.con.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
         self.con.verticalHeader().setVisible(False)
-        self.tabs.addTab(self.con, "Contacts")
+        self.tabs.addTab(self.con, "접촉")
         self._sliders: list[tuple[int, QSlider, QDoubleSpinBox]] = []
         self.timer = QTimer(self)
         self.timer.setInterval(150)
@@ -85,12 +86,12 @@ class SimPanel(QWidget):
 
     def _toggle(self, on: bool) -> None:
         self.sim.play() if on else self.sim.pause()
-        self.play.setText("❚❚ Pause" if on else "▶ Play")
+        self.play.setText("❚❚ 일시정지" if on else "▶ 재생")
 
     def sync_play(self) -> None:
         self.play.blockSignals(True)
         self.play.setChecked(self.sim.running)
-        self.play.setText("❚❚ Pause" if self.sim.running else "▶ Play")
+        self.play.setText("❚❚ 일시정지" if self.sim.running else "▶ 재생")
         self.play.blockSignals(False)
 
     def _reset(self) -> None:
@@ -106,10 +107,10 @@ class SimPanel(QWidget):
         if m is None:
             return
         for k in range(m.nkey):
-            self.key.addItem(mujoco.mj_id2name(m, OBJ.mjOBJ_KEY, k) or f"key {k}")
+            self.key.addItem(mujoco.mj_id2name(m, OBJ.mjOBJ_KEY, k) or f"키 {k}")
         for i in range(m.nu):
             e = self.ed.idmap.elem(int(OBJ.mjOBJ_ACTUATOR), i)
-            name = (e.get("name") if e is not None else None) or f"actuator {i}"
+            name = (e.get("name") if e is not None else None) or f"액추에이터 {i}"
             self.act.insertRow(i)
             self.act.setItem(i, 0, _ro(name))
             lo, hi = (m.actuator_ctrlrange[i] if m.actuator_ctrllimited[i] else (-1.0, 1.0))
@@ -139,7 +140,7 @@ class SimPanel(QWidget):
         if m is None or not self.isVisible():
             return
         iss = self.sim.last_issue
-        self.status.setText(f"t = {d.time:.3f} s   contacts: {d.ncon}" + (f"   ⚠ {iss}" if iss else ""))
+        self.status.setText(f"t = {d.time:.3f} s   접촉: {d.ncon}개" + (f"   ⚠ {iss}" if iss else ""))
         self.status.setStyleSheet(f"color:{C['warn'] if iss else C['dim']}")
         for i, s, sp in self._sliders:
             if not s.isSliderDown() and not sp.hasFocus():
@@ -160,10 +161,10 @@ class SimPanel(QWidget):
         elif self.tabs.currentWidget() is self.con:
             cs = self.sim.contacts()
             self.con.setRowCount(len(cs))
-            gname = lambda g: mujoco.mj_id2name(m, OBJ.mjOBJ_GEOM, g) or f"geom {g}"  # noqa: E731
+            gname = lambda g: mujoco.mj_id2name(m, OBJ.mjOBJ_GEOM, g) or f"형상 {g}"  # noqa: E731
             for r, c in enumerate(cs):
                 n1, n2 = gname(c.geom1), gname(c.geom2)
-                self.con.setItem(r, 0, _ro(n1 if not n1.startswith("__mms_") else f"geom {c.geom1}"))
-                self.con.setItem(r, 1, _ro(n2 if not n2.startswith("__mms_") else f"geom {c.geom2}"))
+                self.con.setItem(r, 0, _ro(n1 if not n1.startswith("__mms_") else f"형상 {c.geom1}"))
+                self.con.setItem(r, 1, _ro(n2 if not n2.startswith("__mms_") else f"형상 {c.geom2}"))
                 self.con.setItem(r, 2, _ro(f"{c.normal_force:.3f}"))
                 self.con.setItem(r, 3, _ro(mx.fmt_vec(np.round(c.pos, 4), 5)))

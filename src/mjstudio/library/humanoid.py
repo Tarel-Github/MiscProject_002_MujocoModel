@@ -43,7 +43,7 @@ def build_humanoid(ed: Editor, stature: float = 1.75, mass: float = 75.0, face: 
     def hinge(body, name, axis, lo, hi, damping, armature=0.02, **kw):
         return A._hinge(ed, body, name, axis, lo, hi, damping=damping, armature=armature, **kw)
 
-    with ed.structural("Build humanoid"):
+    with ed.structural("전신 인간형 만들기"):
         pelvis = ops.add_body(ed, None, f"{name_prefix}pelvis", pos=(0, 0, hip_z))
         ops.add_joint(ed, pelvis, "free", f"{name_prefix}root")
         ops.add_geom(ed, pelvis, "capsule", "pelvis", size=f"{0.085 * k:.4g}",
@@ -127,7 +127,7 @@ def build_humanoid(ed: Editor, stature: float = 1.75, mass: float = 75.0, face: 
         sec = ed.doc.section("contact")
         if sec is None:
             sec = ops.make("contact")
-            ed.push(Insert(ed.doc.root, ops._section_index(ed, "contact"), sec, "Add contact section"))
+            ed.push(Insert(ed.doc.root, ops._section_index(ed, "contact"), sec, "contact 섹션 추가"))
         for a, b in pairs:
             ed.push(Insert(sec, len(sec), ops.make("exclude", body1=a, body2=b), "exclude contact"))
     if face:

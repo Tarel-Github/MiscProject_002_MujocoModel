@@ -1,4 +1,4 @@
-"""Joint control: sliders for every joint, range editing for the selected joint."""
+"""관절 조작: 모든 관절의 슬라이더, 선택한 관절의 범위 편집."""
 from __future__ import annotations
 
 import logging
@@ -128,33 +128,33 @@ class JointPanel(QWidget):
         lay.setContentsMargins(4, 4, 4, 4)
         bar = QHBoxLayout()
         self.filter = QLineEdit()
-        self.filter.setPlaceholderText("Filter joints…")
+        self.filter.setPlaceholderText("관절 이름 검색…")
         self.filter.setClearButtonEnabled(True)
         self.filter.textChanged.connect(self._filter)
         bar.addWidget(self.filter, 1)
-        self.only_sel = QCheckBox("Selected body subtree")
+        self.only_sel = QCheckBox("선택한 바디 아래만")
         self.only_sel.toggled.connect(lambda *_: self._filter(self.filter.text()))
         bar.addWidget(self.only_sel)
-        b = QPushButton("Reset pose")
-        b.setToolTip("Reset all joints to qpos0 (model reference pose)")
+        b = QPushButton("자세 초기화")
+        b.setToolTip("모든 관절을 qpos0(모델 기준 자세)으로 되돌립니다")
         b.clicked.connect(lambda: ed.reset_pose())
         bar.addWidget(b)
         self.keys = QComboBox()
         self.keys.setMinimumWidth(110)
         bar.addWidget(self.keys)
-        b = QPushButton("Load key")
+        b = QPushButton("키프레임 불러오기")
         b.clicked.connect(self._load_key)
         bar.addWidget(b)
-        b = QPushButton("Save pose as key…")
+        b = QPushButton("현재 자세를 키프레임으로…")
         b.clicked.connect(self._save_key)
         bar.addWidget(b)
         lay.addLayout(bar)
         # selected joint range editor
         rbar = QHBoxLayout()
-        self.sel_label = QLabel("Selected joint: -")
+        self.sel_label = QLabel("선택한 관절: -")
         self.sel_label.setStyleSheet(f"color:{C['dim']}")
         rbar.addWidget(self.sel_label, 1)
-        self.lim = QCheckBox("limited")
+        self.lim = QCheckBox("범위 제한")
         self.lo = QDoubleSpinBox()
         self.hi = QDoubleSpinBox()
         for s in (self.lo, self.hi):
@@ -163,9 +163,9 @@ class JointPanel(QWidget):
             s.setKeyboardTracking(False)
             s.setFixedWidth(90)
         rbar.addWidget(self.lim)
-        rbar.addWidget(QLabel("min"))
+        rbar.addWidget(QLabel("최소"))
         rbar.addWidget(self.lo)
-        rbar.addWidget(QLabel("max"))
+        rbar.addWidget(QLabel("최대"))
         rbar.addWidget(self.hi)
         self.lo.valueChanged.connect(self._range_edit)
         self.hi.valueChanged.connect(self._range_edit)
@@ -176,7 +176,7 @@ class JointPanel(QWidget):
         self.group_lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(self.group_box)
         self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["Joint", "Type", "Position", "Value"])
+        self.table.setHorizontalHeaderLabels(["관절", "종류", "위치 (끌어서 조절)", "값"])
         hh = self.table.horizontalHeader()
         hh.setSectionResizeMode(0, QHeaderView.Interactive)
         hh.setSectionResizeMode(2, QHeaderView.Stretch)
@@ -206,7 +206,7 @@ class JointPanel(QWidget):
         self.rows = []
         infos = self.ed.joints()
         r = 0
-        names = {0: "free", 1: "ball", 2: "slide", 3: "hinge"}
+        names = {0: "자유", 1: "볼", 2: "슬라이드", 3: "경첩"}
         for info in infos:
             comps = [0, 1, 2] if info["type"] == JT.mjJNT_BALL else ([-1] if info["type"] != JT.mjJNT_FREE else [])
             if info["type"] == JT.mjJNT_FREE:
@@ -225,7 +225,7 @@ class JointPanel(QWidget):
         m = self.ed.model
         if m is not None:
             for k in range(m.nkey):
-                keys.append(mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_KEY, k) or f"key {k}")
+                keys.append(mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_KEY, k) or f"키 {k}")
         self.keys.clear()
         self.keys.addItems(keys)
         self._build_groups()
@@ -245,7 +245,7 @@ class JointPanel(QWidget):
             row = QWidget()
             h = QHBoxLayout(row)
             h.setContentsMargins(0, 0, 0, 0)
-            lbl = QLabel(f"group <b>{g.name}</b> ({len(g.joints)} joints)")
+            lbl = QLabel(f"그룹 <b>{g.name}</b> (관절 {len(g.joints)}개)")
             lbl.setTextFormat(Qt.RichText)
             lbl.setFixedWidth(220)
             h.addWidget(lbl)
@@ -313,7 +313,7 @@ class JointPanel(QWidget):
         for w in (self.lo, self.hi, self.lim):
             w.setEnabled(en)
         if not en:
-            self.sel_label.setText("Selected joint: - (select a joint to edit its range)")
+            self.sel_label.setText("선택한 관절: - (관절을 선택하면 범위를 수정할 수 있습니다)")
             for w in (self.lo, self.hi):
                 w.blockSignals(True)
                 w.setValue(0.0)
@@ -322,8 +322,8 @@ class JointPanel(QWidget):
                 self._filter(self.filter.text())
             return
         jt = self.ed.doc.get(j, "type") or "hinge"
-        unit = "m" if jt == "slide" else ("deg" if self.ed.doc.angle_unit == "degree" else "rad")
-        self.sel_label.setText(f"Selected joint: <b>{j.get('name') or '(unnamed)'}</b> — range in {unit}")
+        unit = "m" if jt == "slide" else ("도" if self.ed.doc.angle_unit == "degree" else "rad")
+        self.sel_label.setText(f"선택한 관절: <b>{j.get('name') or '(이름 없음)'}</b> — 범위 단위: {unit}")
         self.sel_label.setTextFormat(Qt.RichText)
         r = mx.parse_vec(self.ed.doc.get(j, "range") or "0 0", 2)
         lim = self.ed.doc.get(j, "limited") or "auto"
@@ -346,13 +346,13 @@ class JointPanel(QWidget):
         lo, hi = self.lo.value(), self.hi.value()
         if hi < lo:
             return
-        self.ed.set_attr(j, "range", mx.fmt_vec([lo, hi]), "Edit joint range", merge_key=f"range:{id(j)}")
+        self.ed.set_attr(j, "range", mx.fmt_vec([lo, hi]), "관절 범위 수정", merge_key=f"range:{id(j)}")
 
     def _limit_edit(self, on: bool) -> None:
         j = self._sel_joint
         if j is None:
             return
-        self.ed.set_attr(j, "limited", "true" if on else "false", "Toggle joint limit")
+        self.ed.set_attr(j, "limited", "true" if on else "false", "관절 범위 제한 켜기/끄기")
 
     def _load_key(self) -> None:
         i = self.keys.currentIndex()
@@ -361,10 +361,10 @@ class JointPanel(QWidget):
 
     def _save_key(self) -> None:
         from PySide6.QtWidgets import QInputDialog
-        name, ok = QInputDialog.getText(self, "Save keyframe", "Keyframe name:",
+        name, ok = QInputDialog.getText(self, "키프레임 저장", "키프레임 이름:",
                                         text=self.ed.doc.unique_name("key", "pose"))
         if ok and name.strip():
             try:
                 ops.add_keyframe(self.ed, name.strip())
             except Exception as ex:  # noqa: BLE001
-                log.error("Cannot add keyframe: %s", ex)
+                log.error("키프레임을 추가할 수 없음: %s", ex)

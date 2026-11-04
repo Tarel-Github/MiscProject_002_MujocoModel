@@ -6,6 +6,28 @@ MuJoCo 물리 시뮬레이션용 **시각적 모델 편집·조립 프로그램*
 
 ![editor](docs/screenshots/editor_overview.png)
 
+## 무엇을 어디서 하나요? (빠른 안내)
+
+화면은 모두 한국어입니다. 모델에 무언가를 **더하거나 고치는 기능은 왼쪽 아래 `추가·편집` 패널**에 모여 있고,
+같은 기능이 메뉴(`추가`, `메시`)와 3D 화면의 **오른쪽 클릭 메뉴**에도 있습니다. 프로그램 안에서는 `도움말 › 사용 안내`(F1).
+
+| 하고 싶은 일 | 위치 |
+|---|---|
+| 어디에 붙일지 정하기 | 계층 트리나 3D 화면에서 **바디를 클릭** → 패널 맨 위에 `추가 위치: (바디 이름)` 표시 |
+| **손가락 하나 추가** | 손바닥 바디 선택 → `추가·편집 › 신체 부품 › 손가락 하나…` → 검지·중지·약지·소지·엄지, 좌/우, 붙일 위치(기본값 자동), 크기 |
+| 손 전체·발·머리·전신 | `추가·편집 › 신체 부품` (또는 메뉴 `추가 › 신체 부품`) |
+| **내가 만든 3D 모델 붙이기** | 바디 선택 → `추가·편집 › 내 3D 모델 › 3D 모델 파일 붙이기 (OBJ·STL·GLB)…` → 단위(mm 등), 좌표축(Blender 등), 선택한 바디에 붙이기/새 바디, 충돌 형상(볼록 껍질·박스·캡슐…) 선택 |
+| **폴리곤(정점·면) 수정** | 형상 선택(도구막대 `형상 선택`이 편리) → `폴리곤 편집 시작 / 끝내기`(Tab). 캡슐·박스 같은 기본 형상이면 **편집 가능한 메시로 변환할지 묻습니다**. 정점 클릭(Shift 추가) → 이동 도구(W)로 끌기, Del 삭제, F 세 정점으로 면, 면 클릭 후 P 정점 추가, Esc 끝 |
+| 편집용 메시 도형 새로 만들기 | `추가·편집 › 편집용 메시 도형` (박스·구·캡슐·원기둥·타원체·평면·삼각형·사각형) |
+| 부품 저장·가져오기·교체 | `추가·편집 › 부품·구조` (예: 머리만 다른 머리로 교체) |
+| 관절 움직여 보기, 범위 수정 | 아래 `관절` 탭 (슬라이더, 선택 관절의 최소/최대) |
+| 표정·눈·턱 | 아래 `얼굴` 탭 (프리셋, 표정 슬라이더, 두 눈 함께/따로) |
+| 속성 수정 | 오른쪽 `속성` (굵은 글씨 = 직접 지정한 값, 회색 = 기본 클래스에서 상속된 값) |
+
+![polygon edit](docs/screenshots/polygon_edit.png)
+
+*폴리곤 편집: 정강이 캡슐을 메시로 변환한 뒤 위쪽 정점 6개를 선택한 상태. 화면 위·아래에 현재 모드와 조작법이 표시됩니다.*
+
 ## 현재 상태
 
 | Phase | 내용 | 상태 |
@@ -15,11 +37,13 @@ MuJoCo 물리 시뮬레이션용 **시각적 모델 편집·조립 프로그램*
 | 3 | 프리미티브 메시, 폴리곤 편집, OBJ/STL/GLB 가져오기, 시각/충돌 분리, 내보내기 | **완료** (뷰포트 정점 편집 모드 포함) |
 | 4 | 얼굴 표정 (Shape Key + 제어 본), Blender 표정 가져오기, 외부 API, 저장 | **완료** (MuJoCo skin + 렌더 직전 정점 덮어쓰기) |
 | 5 | 전신 인간형 통합 검증 | **완료** (라이브러리 전신 모델 + 최종 평가 시나리오 자동 테스트) |
-| 6 | 품질 개선 | 부분 — Undo/Redo, 오류 위치 표시, 검증, 회귀 테스트 158개, 버전 기능 감지 |
+| 6 | 품질 개선 | 부분 — Undo/Redo, 오류 위치 표시, 검증, 회귀 테스트 161개, 버전 기능 감지, 한국어 UI |
 
-검증 환경: Linux(Ubuntu 24.04, Xvfb + Mesa llvmpipe 소프트웨어 OpenGL). 테스트 158개(GUI 포함)가
+검증 환경: Linux(Ubuntu 24.04, Xvfb + Mesa llvmpipe 소프트웨어 OpenGL). 테스트 161개(GUI 포함)가
 **MuJoCo 3.0.1 + numpy 1.26**과 **MuJoCo 3.17.0 + numpy 2.5** 양쪽에서 통과합니다.
 **Windows 11에서의 GUI 실행은 이 환경에서 검증하지 못했습니다** (코드상 Windows 전용 제약은 없음).
+한글 글꼴은 Windows에서 맑은 고딕, macOS에서 Apple SD Gothic Neo, Linux에서 Noto Sans CJK KR/나눔고딕을 자동으로 씁니다.
+MuJoCo 엔진이 직접 내는 컴파일 오류 문장은 MuJoCo 라이브러리의 영어 원문 그대로 표시됩니다(어느 요소인지는 트리에 빨간색으로 표시).
 
 ## 설치
 
@@ -55,7 +79,8 @@ mjstudio-validate examples/models/humanoid.xml
 - 왼쪽 드래그: 회전 · 오른쪽 드래그: 이동 · 휠/가운데 드래그: 확대
 - 클릭: 선택(Shift/Ctrl 추가) · 더블클릭: 해당 지점으로 시점 중심 이동 · F: 선택 영역 맞춤
 - Q/W/E: 선택/이동/회전 도구 · L: 로컬/월드 축 전환 · 드래그 중 Ctrl: 1 cm / 15° 스냅 · Esc: 취소
-- Space: 시뮬레이션 재생/정지
+- 오른쪽 클릭(끌지 않고): 그 자리 요소의 메뉴(추가, 손가락, 3D 모델, 폴리곤 편집, 복제, 삭제 …)
+- Space: 시뮬레이션 재생/정지 · Tab: 폴리곤 편집 시작/끝 · F1: 사용 안내
 
 ## 주요 기능
 
@@ -88,17 +113,19 @@ mjstudio-validate examples/models/humanoid.xml
 |---|---|
 | ![hand](docs/screenshots/hand_left_fist.png) | ![head](docs/screenshots/head_eyes_jaw.png) |
 
-**메시와 Blender 연동** (Mesh 메뉴)
+**메시와 Blender 연동** (`추가·편집` 패널의 `내 3D 모델`·`폴리곤(메시) 편집`, 메뉴 `메시`)
 - OBJ/STL은 원본 파일을 그대로 참조(단위 → `<mesh scale>`, 축 프리셋 → geom 방향)해 UV·법선을 보존, GLB는 glTF 축 규약을 자동 변환
 - 시각 geom(group 2, 접촉 없음)과 충돌 geom(group 3, MuJoCo 볼록 껍질 또는 메시에 맞춘 박스/캡슐 등) 분리
 - 프리미티브 메시(box, sphere, capsule, cylinder, ellipsoid, plane, triangle, quad)
 - 정점 편집 모드(Tab): 정점 클릭 선택(Shift 추가) → 기즈모로 이동, Del 삭제, F 세 정점으로 면 생성, 면 클릭 후 P로 정점 추가, Undo 지원
+- 기본 형상(구·박스·캡슐·원기둥·타원체, `fromto`·기본 클래스 상속 포함)을 같은 위치·크기의 편집 가능한 메시로 변환
 - 편집한 메시는 원본 파일을 덮어쓰지 않고 `*_edit.obj`로 분기, 저장 시 `meshes/`에 기록, OBJ/STL 내보내기
 
-**얼굴 표정** (Face 도크, `mjstudio.core.expr`)
+**얼굴 표정** (아래 `얼굴` 탭, `mjstudio.core.expr`)
 - 얼굴 = MJCF `<skin>`(head·jaw body에 바인딩) → 순수 MuJoCo에서도 턱을 따라 움직임
 - 표정 = Shape Key(블렌드 셰이프) + 제어 본(눈꺼풀) 가중합을 렌더 직전 `scn.skinvert`에 기록 → 물리와 같은 `MjData`·같은 시뮬레이션 시간
-- 파라미터(0~1)는 독립·혼합 가능, 프리셋: neutral, smile, frown, surprise, blink, wink_left/right, 시간 트랙(`data.time` 기준)
+- 파라미터(0~1)는 독립·혼합 가능, 프리셋: 무표정(neutral), 미소(smile), 찡그림(frown), 놀람(surprise), 눈 감기(blink), 윙크(wink_left/right), 시간 트랙(`data.time` 기준)
+- 화면에는 한국어 이름(예: `눈 감기 (왼쪽)`)이 보이고, 외부 API에서 쓰는 원래 이름(`blink_left`)은 툴팁으로 확인
 - Blender에서 만든 GLB(Shape Key + `jaw` 본 가중치)를 그대로 가져옴 — `examples/blender/`의 스크립트로 실제 Blender 5.2(bpy)에서 만든 파일로 검증
 - 외부 API:
 
@@ -113,7 +140,7 @@ fc.set_jaw_open(0.5)                      # 턱 범위의 비율
 
 ![face](docs/screenshots/face_expressions.png)
 
-**전신 인간형** (`mjstudio.library.humanoid`, Model > Insert library part > Full humanoid)
+**전신 인간형** (`mjstudio.library.humanoid`, `추가·편집 › 신체 부품 › 전신 인간형`)
 - de Leva(1996) 비율, 골반(free)·요추·흉추·목, 어깨 거들·어깨·팔꿈치·회내외·손목·22관절 손, 고관절·무릎·분절 발, 눈·턱·얼굴
 - body 59, 관절 91(자유도 96), 액추에이터 86, 센서 112, 75.9 kg; 감각 데이터는 `SensorBus`로 그룹별(촉각, 고유수용, 전정, 자세, 힘) 읽기와 사용자 채널 확장
 
@@ -149,7 +176,7 @@ Blender에서 만든 턱·얼굴 메시 조립 → 양쪽 눈을 각각 회전�
 python -m pytest tests
 ```
 
-158개 테스트. GUI 테스트(`tests/test_gui.py`)는 디스플레이가 필요합니다. 헤드리스 Linux에서는:
+161개 테스트. GUI 테스트(`tests/test_gui.py`)는 디스플레이가 필요합니다. 헤드리스 Linux에서는:
 
 ```bash
 xvfb-run -a -s "-screen 0 1920x1080x24" python -m pytest tests
@@ -177,7 +204,7 @@ src/mjstudio/
     expr.py      표정 리그·FaceController, faceops.py 얼굴 부착/GLB 가져오기
     sensing.py   SensorBus (구조화된 감각 데이터 + 확장 채널)
     schema.py, mathx.py, undo.py
-  gui/         PySide6 GUI (viewport, tree, props, jointpanel, simpanel, ...)
+  gui/         PySide6 GUI (viewport, tree, props, addpanel(추가·편집), jointpanel, simpanel, facepanel, ...)
   library/     anatomy.py (손/발/머리), face.py (절차적 얼굴), humanoid.py (전신)
 tests/  examples/  docs/
 ```

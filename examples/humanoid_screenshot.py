@@ -24,14 +24,14 @@ rig = ed.rigs["face"]
 D = math.radians
 views = []
 for name, pose, expr, cam in (
-        ("standing (qpos0)", {}, None, (0.0, 1.0, 2.6, 150, -8)),
-        ("posed: fist, smile, gaze, jaw", {"shoulder_flex_left": 70, "elbow_left": 80, "shoulder_abd_right": 40,
+        ("선 자세 (qpos0)", {}, None, (0.0, 1.0, 2.6, 150, -8)),
+        ("자세: 주먹·미소·시선·턱", {"shoulder_flex_left": 70, "elbow_left": 80, "shoulder_abd_right": 40,
                                           "hip_flex_right": 40, "knee_right": 60, "ankle_flex_right": -20,
                                           "eye_left_yaw": 25, "eye_right_yaw": 25, "jaw_open": 15,
                                           **{f"{f}_{j}_left": 75 for f in ("index", "middle", "ring", "little")
                                              for j in ("mcp_flex", "pip", "dip")}},
          "smile", (0.0, 1.05, 2.4, 140, -5)),
-        ("face close-up", {"eye_left_yaw": 25, "eye_right_yaw": 25, "jaw_open": 15}, "smile",
+        ("얼굴 확대", {"eye_left_yaw": 25, "eye_right_yaw": 25, "jaw_open": 15}, "smile",
          (0.0, 1.62, 0.55, 170, -5))):
     ed.reset_pose()
     for j, deg in pose.items():

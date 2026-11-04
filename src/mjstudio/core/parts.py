@@ -76,7 +76,7 @@ def _defined(e: Element, doc: MjcfDoc) -> set[tuple[str, str]]:
 def extract_part(doc: MjcfDoc, body: Element, at_origin: bool = True, name: str | None = None) -> MjcfDoc:
     """Standalone MJCF containing *body*'s subtree and everything it needs."""
     if body.tag != "body":
-        raise ValueError("a part is extracted from a <body>")
+        raise ValueError("부품은 <body>에서만 추출할 수 있습니다")
     root = etree.Element("mujoco", model=name or body.get("name") or "part")
     for c in doc.sections("compiler"):
         root.append(copy.deepcopy(c))
@@ -127,7 +127,7 @@ def extract_part(doc: MjcfDoc, body: Element, at_origin: bool = True, name: str 
                 if refs and refs <= inside | {(k, n) for k, n in _asset_names(asset_elems, doc)}:
                     kept.append(copy.deepcopy(c))
                 elif refs & inside:
-                    notes.append(f"{c.tag} '{c.get('name', '')}' references elements outside the part (dropped)")
+                    notes.append(f"{c.tag} '{c.get('name', '')}'이(가) 부품 밖의 요소를 참조해 제외함")
         if kept:
             s = etree.SubElement(root, sec_tag)
             for c in kept:
@@ -137,7 +137,7 @@ def extract_part(doc: MjcfDoc, body: Element, at_origin: bool = True, name: str 
     part.meta["part"] = {"source": str(doc.path) if doc.path else "", "root": body.get("name") or "",
                          "attach_pos": list(map(float, lp)), "attach_quat": list(map(float, lq)), "notes": notes}
     for n in notes:
-        log.info("extract: %s", n)
+        log.info("부품 추출: %s", n)
     return part
 
 
@@ -209,20 +209,20 @@ def import_part(ed: Editor, part: MjcfDoc, parent: Element | None = None, pos=No
     doc = ed.doc
     parent = parent if parent is not None else doc.worldbody
     if parent.tag not in ("body", "worldbody", "frame"):
-        raise ValueError("parts are attached to a body or the world")
+        raise ValueError("부품은 바디나 월드에만 붙일 수 있습니다")
     p = part.clone()
     _normalize_units(p, doc.angle_unit, doc.compiler_attr("autolimits", "true"))
     pwb = p.section("worldbody")
     roots = [c for c in children(pwb) if c.tag == "body"] if pwb is not None else []
     if not roots:
-        raise ValueError("part has no body in its worldbody")
+        raise ValueError("부품의 worldbody에 바디가 없습니다")
     if prefix is None:
         prefix = (p.model_name or "part") + "_"
     if parent.tag != "worldbody":
         for r in roots:
             for fj in [c for c in children(r) if c.tag == "freejoint" or
                        (c.tag == "joint" and (p.get(c, "type") or "hinge") == "free")]:
-                log.warning("import: removed free joint '%s' (only allowed on top-level bodies)", fj.get("name", ""))
+                log.warning("부품 가져오기: 자유 관절 '%s' 제거 (월드 바로 아래 바디에만 허용)", fj.get("name", ""))
                 r.remove(fj)
     # ---------- names
     mapping: dict[tuple[str, str], str] = {}
@@ -307,7 +307,7 @@ def import_part(ed: Editor, part: MjcfDoc, parent: Element | None = None, pos=No
                         continue
                     spec = next((s for s in attrs_for(tc.tag) if s.name == k), None)
                     if spec is None or spec.default is None:
-                        log.warning("import: target default %s/%s has no neutral value; it will apply to the part",
+                        log.warning("부품 가져오기: 대상 모델의 기본값 %s/%s에 중립값이 없어 부품에도 적용됩니다",
                                     tc.tag, k)
                         continue
                     if mine is None:
@@ -350,27 +350,27 @@ def import_part(ed: Editor, part: MjcfDoc, parent: Element | None = None, pos=No
     _remap(p.root, mapping)
     # ---------- insert (one undoable step)
     inserted: list[Element] = []
-    with ed.structural(f"Import part {p.model_name}"):
+    with ed.structural(f"부품 가져오기 {p.model_name}"):
         if ns_elem is not None:
             top_def = doc.section("default")
             if top_def is None:
                 top_def = etree.Element("default")
-                ed.push(Insert(doc.root, _section_index(doc, "default"), top_def, "Add default section"))
-            ed.push(Insert(top_def, len(top_def), ns_elem, "Import default classes"))
+                ed.push(Insert(doc.root, _section_index(doc, "default"), top_def, "default 섹션 추가"))
+            ed.push(Insert(top_def, len(top_def), ns_elem, "기본 클래스 가져오기"))
         if passet is not None:
             new_assets = [a for a in children(passet) if a not in reuse_assets]
             if new_assets:
                 tasset = doc.section("asset")
                 if tasset is None:
                     tasset = etree.Element("asset")
-                    ed.push(Insert(doc.root, _section_index(doc, "asset"), tasset, "Add asset section"))
+                    ed.push(Insert(doc.root, _section_index(doc, "asset"), tasset, "asset 섹션 추가"))
                 for a in new_assets:
-                    ed.push(Insert(tasset, len(tasset), a, "Import asset"))
+                    ed.push(Insert(tasset, len(tasset), a, "에셋 가져오기"))
         for k, r in enumerate(roots):
             if k == 0 and (pos is not None or quat is not None):
                 _set_pose_attrs(r, pos if pos is not None else np.zeros(3), quat if quat is not None else mx.QID)
             idx = (len(parent) if index is None else index + k)
-            ed.push(Insert(parent, idx, r, "Import part body"))
+            ed.push(Insert(parent, idx, r, "부품 바디 가져오기"))
             inserted.append(r)
         for s in SECTION_ORDER + ("deformable",):
             items = [c for sec in p.sections(s) for c in children(sec)]
@@ -379,12 +379,12 @@ def import_part(ed: Editor, part: MjcfDoc, parent: Element | None = None, pos=No
             tsec = doc.section(s)
             if tsec is None:
                 tsec = etree.Element(s)
-                ed.push(Insert(doc.root, _section_index(doc, s), tsec, f"Add {s} section"))
+                ed.push(Insert(doc.root, _section_index(doc, s), tsec, f"{s} 섹션 추가"))
             for c in items:
-                ed.push(Insert(tsec, len(tsec), c, f"Import {c.tag}"))
+                ed.push(Insert(tsec, len(tsec), c, f"{c.tag} 가져오기"))
                 inserted.append(c)
     if mapping:
-        log.info("import: renamed %d element(s) to avoid collisions (prefix '%s')", len(mapping), prefix)
+        log.info("부품 가져오기: 이름이 겹치지 않도록 요소 %d개 이름 변경 (접두사 '%s')", len(mapping), prefix)
     return inserted
 
 
@@ -419,7 +419,7 @@ def replace_body(ed: Editor, old: Element, part: MjcfDoc, prefix: str | None = N
     parent = old.getparent()
     idx = parent.index(old)
     lp, lq = ed.doc.local_pose(old)
-    with ed.structural(f"Replace {ed.doc.label(old)}"):
+    with ed.structural(f"부품으로 교체 {ed.doc.label(old)}"):
         ed.delete([old])
         out = import_part(ed, part, parent, lp, lq, prefix=prefix, index=idx)
     return out

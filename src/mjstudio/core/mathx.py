@@ -156,7 +156,7 @@ def euler2q(euler: Sequence[float], seq: str = "xyz") -> np.ndarray:
     """MuJoCo euler semantics: lower case = intrinsic (rotating axes, post-multiply),
     upper case = extrinsic (fixed axes, pre-multiply); characters may be mixed."""
     if len(seq) != 3:
-        raise ValueError(f"eulerseq must have 3 characters: {seq!r}")
+        raise ValueError(f"eulerseq는 3글자여야 합니다: {seq!r}")
     q = QID.copy()
     for ang, ch in zip(euler, seq):
         t = np.array([math.cos(ang / 2), 0.0, 0.0, 0.0])

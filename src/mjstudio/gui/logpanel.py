@@ -42,7 +42,7 @@ class LogPanel(QWidget):
         lay.addWidget(self.view)
         bar = QHBoxLayout()
         bar.addStretch(1)
-        b = QPushButton("Clear")
+        b = QPushButton("지우기")
         b.clicked.connect(self.view.clear)
         bar.addWidget(b)
         lay.addLayout(bar)

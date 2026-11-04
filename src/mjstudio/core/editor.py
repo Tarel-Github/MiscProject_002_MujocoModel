@@ -81,7 +81,7 @@ class Editor:
         self.data = None
         self.result = None
         if doc.meta.get("flattened_includes"):
-            log.warning("<include> files were inlined: %s (saving writes a single file)",
+            log.warning("<include> 파일을 합쳐서 열었습니다: %s (저장하면 파일 하나로 씁니다)",
                         ", ".join(doc.meta["flattened_includes"]))
         self.doc_loaded.emit()
         self.selection_changed.emit(self.selection)
@@ -93,19 +93,19 @@ class Editor:
 
     def open(self, path: str | Path) -> None:
         doc = MjcfDoc.load(path)
-        log.info("Loaded %s", doc.path)
+        log.info("열기: %s", doc.path)
         self.set_doc(doc)
 
     def save(self, path: str | Path | None = None) -> list[str]:
         if path is None:
             if self.doc.path is None:
-                raise ValueError("document has no path; use save(path)")
+                raise ValueError("문서에 경로가 없습니다. save(path)를 쓰세요")
             path = self.doc.path
         notes = self.doc.save(path)
         for n in notes:
-            log.info("path rewritten: %s", n)
+            log.info("경로 재작성: %s", n)
         self.undo.set_clean()
-        log.info("Saved %s", self.doc.path)
+        log.info("저장: %s", self.doc.path)
         return notes
 
     @property
@@ -125,7 +125,7 @@ class Editor:
             mujoco.mj_forward(res.model, self.data)
             log.debug("compiled in %.1f ms", res.elapsed_ms)
         else:
-            log.error("Compile error: %s", res.pretty_error(self.doc))
+            log.error("컴파일 오류: %s", res.pretty_error(self.doc))
         self.compiled.emit(res)
         self.state_changed.emit()
         return res
@@ -200,22 +200,22 @@ class Editor:
         if "name" in ch:
             # route renames through rename() to keep references valid
             newname = ch.pop("name")
-            with self.batch(text or "Rename"):
+            with self.batch(text or "이름 바꾸기"):
                 self.rename(e, newname or "")
                 if ch:
                     self.push(SetAttrs(e, ch, text))
             return
         if (e.tag in ("joint", "freejoint") and "type" in ch) or (e.tag == "body" and "mocap" in ch):
             # changes the qpos / mocap layout: keep keyframes consistent
-            with self.structural(text or f"Edit {self.doc.label(e)}"):
-                self.push(SetAttrs(e, ch, text or f"Edit {self.doc.label(e)}"))
+            with self.structural(text or f"{self.doc.label(e)} 수정"):
+                self.push(SetAttrs(e, ch, text or f"{self.doc.label(e)} 수정"))
             return
-        self.push(SetAttrs(e, ch, text or f"Edit {self.doc.label(e)}", merge_key), merge=merge_key is not None)
+        self.push(SetAttrs(e, ch, text or f"{self.doc.label(e)} 수정", merge_key), merge=merge_key is not None)
 
     def set_attr(self, e: Element, key: str, value: str | None, text: str = "", merge_key: str | None = None) -> None:
-        self.set_attrs(e, {key: value}, text or f"Set {key}", merge_key)
+        self.set_attrs(e, {key: value}, text or f"{key} 설정", merge_key)
 
-    def set_pose(self, e: Element, pos, quat, text: str = "Transform", merge_key: str | None = None) -> None:
+    def set_pose(self, e: Element, pos, quat, text: str = "위치·회전 변경", merge_key: str | None = None) -> None:
         self.set_attrs(e, self.doc.pose_changes(e, pos, quat), text, merge_key)
 
     # ================================================================ naming / references
@@ -263,16 +263,16 @@ class Editor:
             return
         kind = "class" if e.tag == "default" else ref_kind(e)
         if new and kind and kind not in ("equality",) and new in self.doc.names(kind):
-            raise ValueError(f"a {kind} named '{new}' already exists")
+            raise ValueError(f"이름이 '{new}'인 {kind}이(가) 이미 있습니다")
         if new.startswith("__mms_"):
-            raise ValueError("names starting with '__mms_' are reserved")
-        with self.batch(f"Rename {old or e.tag} -> {new}"):
+            raise ValueError("'__mms_'로 시작하는 이름은 예약되어 있습니다")
+        with self.batch(f"이름 바꾸기 {old or e.tag} → {new}"):
             if old and kind:
                 for ref, attr in self.references_to(kind, old):
                     if ref is e:
                         continue
                     if not new:
-                        raise ValueError(f"'{old}' is referenced by {ref.tag}/{attr}; cannot clear its name")
+                        raise ValueError(f"'{old}'을(를) {ref.tag}/{attr}이(가) 참조하고 있어 이름을 지울 수 없습니다")
                     self.push(SetAttrs(ref, {attr: new}, "update reference"))
             self.push(SetAttrs(e, {key: new or None}, "rename"))
 
@@ -394,7 +394,7 @@ class Editor:
             return
         new = self.layout()
         if old is None or new is None:
-            log.warning("keyframes not remapped (procedural elements in the model)")
+            log.warning("키프레임을 다시 맞추지 못했습니다 (모델에 절차적 요소가 있음)")
             return
         if ([e for e, _ in old["joints"]] == [e for e, _ in new["joints"]] and
                 [t for _, t in old["joints"]] == [t for _, t in new["joints"]] and
@@ -453,7 +453,7 @@ class Editor:
                     ch[attr] = mx.fmt_vec(out) if out else None
             if k.get("act") is not None and old["act"] != new["act"]:
                 ch["act"] = None
-                log.warning("keyframe '%s': act vector dropped (actuator layout changed)", k.get("name", ""))
+                log.warning("키프레임 '%s': act 값을 버렸습니다 (액추에이터 구성이 바뀜)", k.get("name", ""))
             ch = {a: b for a, b in ch.items() if k.get(a) != b}
             if ch:
                 self.push(SetAttrs(k, ch, "remap keyframe"))
@@ -466,13 +466,13 @@ class Editor:
         if not top:
             return []
         deps, clears = self.dependents(top) if cascade else ([], [])
-        with self.structural(f"Delete {len(top)} element(s)"):
+        with self.structural(f"요소 {len(top)}개 삭제"):
             for ref, ch in clears:
-                log.info("clearing reference %s on %s", ",".join(ch), self.doc.label(ref))
+                log.info("참조 지움: %s (%s)", ",".join(ch), self.doc.label(ref))
                 self.push(SetAttrs(ref, ch, "clear reference"))
             for d in deps:
                 if d.getparent() is not None:
-                    log.info("also removing dependent %s %s", d.tag, self.doc.label(d))
+                    log.info("함께 삭제: %s %s", d.tag, self.doc.label(d))
                     self.push(Remove(d))
             for e in top:
                 if e.getparent() is not None:
@@ -484,8 +484,8 @@ class Editor:
              text: str = "") -> None:
         """Re-parent an element; with keep_world the world pose is preserved."""
         if new_parent is e or new_parent in list(e.iterdescendants()):
-            raise ValueError("cannot move an element into itself")
-        with self.structural(text or f"Move {self.doc.label(e)}"):
+            raise ValueError("요소를 자기 자신 안으로 옮길 수 없습니다")
+        with self.structural(text or f"{self.doc.label(e)} 옮기기"):
             if keep_world and e.tag in ("body", "geom", "site", "camera", "light", "joint", "frame") and self.valid:
                 # L' = P_new^-1 o P_old o L  (independent of the element's own joint motion)
                 wp, wq = self.frame_world(e)
@@ -604,13 +604,13 @@ class Editor:
     def set_qpos(self, joint: Element | str | int, value, forward: bool = True) -> None:
         j = self.joint_id(joint)
         if j < 0:
-            raise KeyError(f"unknown joint {joint!r}")
+            raise KeyError(f"알 수 없는 관절 {joint!r}")
         m = self.model
         n = {0: 7, 1: 4, 2: 1, 3: 1}[int(m.jnt_type[j])]
         a = m.jnt_qposadr[j]
         v = np.atleast_1d(np.asarray(value, float))
         if v.size != n:
-            raise ValueError(f"joint expects {n} values")
+            raise ValueError(f"이 관절은 값 {n}개가 필요합니다")
         self.data.qpos[a:a + n] = v
         if forward:
             self.forward()

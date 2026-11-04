@@ -42,44 +42,44 @@ LIMITS = "Limits"
 SOLVER = "Solver"
 
 _ORIENT = [
-    A("quat", VEC, "1 0 0 0", n=4, group=TRANSFORM, tip="Orientation quaternion (w x y z)"),
-    A("axisangle", VEC, None, n=4, group=TRANSFORM, tip="Axis (x y z) and angle (compiler angle unit)"),
-    A("xyaxes", VEC, None, n=6, group=TRANSFORM, tip="Frame X axis and Y axis"),
-    A("zaxis", VEC, None, n=3, group=TRANSFORM, tip="Frame Z axis (minimal rotation from +Z)"),
-    A("euler", VEC, None, n=3, group=TRANSFORM, tip="Euler angles (compiler eulerseq/angle)"),
+    A("quat", VEC, "1 0 0 0", n=4, group=TRANSFORM, tip="방향 쿼터니언 (w x y z)"),
+    A("axisangle", VEC, None, n=4, group=TRANSFORM, tip="축 (x y z)과 각도 (compiler의 각도 단위)"),
+    A("xyaxes", VEC, None, n=6, group=TRANSFORM, tip="프레임의 X축과 Y축"),
+    A("zaxis", VEC, None, n=3, group=TRANSFORM, tip="프레임의 Z축 (+Z에서 최소 회전)"),
+    A("euler", VEC, None, n=3, group=TRANSFORM, tip="오일러 각 (compiler의 eulerseq/각도 단위)"),
 ]
-_POS = A("pos", VEC, "0 0 0", n=3, group=TRANSFORM, tip="Position in parent frame")
-_USER = A("user", VEC, None, group="User", tip="User data")
+_POS = A("pos", VEC, "0 0 0", n=3, group=TRANSFORM, tip="부모 기준 위치")
+_USER = A("user", VEC, None, group="User", tip="사용자 데이터")
 _SOLREF = "0.02 1"
 _SOLIMP = "0.9 0.95 0.001 0.5 2"
 
 BODY = [
-    A("name", NAME), A("childclass", REF, ref="class", tip="Default class for children"),
+    A("name", NAME), A("childclass", REF, ref="class", tip="자식 요소에 적용할 기본 클래스"),
     _POS, *_ORIENT,
-    A("mocap", BOOL, "false", group=PHYS, tip="Mocap body (world child only)"),
-    A("gravcomp", REAL, "0", group=PHYS, tip="Gravity compensation (fraction of weight)"),
+    A("mocap", BOOL, "false", group=PHYS, tip="모캡 바디 (월드 바로 아래만)"),
+    A("gravcomp", REAL, "0", group=PHYS, tip="중력 보상 (무게 대비 비율)"),
     _USER,
 ]
 
 INERTIAL = [
     _POS, *_ORIENT,
-    A("mass", REAL, None, group=PHYS, tip="Mass (kg)"),
-    A("diaginertia", VEC, None, n=3, group=PHYS, tip="Diagonal inertia in the inertial frame"),
-    A("fullinertia", VEC, None, n=6, group=PHYS, tip="Full inertia Ixx Iyy Izz Ixy Ixz Iyz"),
+    A("mass", REAL, None, group=PHYS, tip="질량 (kg)"),
+    A("diaginertia", VEC, None, n=3, group=PHYS, tip="관성 프레임 기준 대각 관성"),
+    A("fullinertia", VEC, None, n=6, group=PHYS, tip="전체 관성 Ixx Iyy Izz Ixy Ixz Iyz"),
 ]
 
 JOINT = [
     A("name", NAME), A("class", REF, ref="class"),
     A("type", ENUM, "hinge", choices=("free", "ball", "slide", "hinge")),
     A("group", INT, "0", group=VISUAL),
-    A("pos", VEC, "0 0 0", n=3, group=TRANSFORM, tip="Joint anchor in body frame"),
-    A("axis", VEC, "0 0 1", n=3, group=TRANSFORM, tip="Rotation / translation axis in body frame"),
+    A("pos", VEC, "0 0 0", n=3, group=TRANSFORM, tip="바디 기준 관절 중심 위치"),
+    A("axis", VEC, "0 0 1", n=3, group=TRANSFORM, tip="바디 기준 회전/이동 축"),
     A("limited", ENUM, "auto", choices=AUTO_BOOL, group=LIMITS),
-    A("range", VEC, "0 0", n=2, group=LIMITS, tip="Joint range (deg/rad for hinge/ball, m for slide)", angle=True),
+    A("range", VEC, "0 0", n=2, group=LIMITS, tip="관절 범위 (경첩/볼: 도 또는 rad, 슬라이드: m)", angle=True),
     A("margin", REAL, "0", group=LIMITS),
     A("solreflimit", VEC, _SOLREF, nmax=2, group=LIMITS),
     A("solimplimit", VEC, _SOLIMP, nmax=5, group=LIMITS),
-    A("ref", REAL, "0", group=PHYS, tip="Reference position (qpos0)", angle=True),
+    A("ref", REAL, "0", group=PHYS, tip="기준 위치 (qpos0)", angle=True),
     A("springref", REAL, "0", group=PHYS, angle=True),
     A("stiffness", REAL, "0", group=PHYS),
     A("damping", REAL, "0", group=PHYS),
@@ -99,15 +99,15 @@ GEOM_TYPES = ("plane", "hfield", "sphere", "capsule", "ellipsoid", "cylinder", "
 GEOM = [
     A("name", NAME), A("class", REF, ref="class"),
     A("type", ENUM, "sphere", choices=GEOM_TYPES),
-    A("size", VEC, "0 0 0", nmax=3, tip="Type dependent size parameters"),
+    A("size", VEC, "0 0 0", nmax=3, tip="종류별 크기 값 (구: 반지름, 캡슐: 반지름 반길이, 박스: 반폭 3개 …)"),
     A("mesh", REF, ref="mesh"), A("hfield", REF, ref="hfield"),
-    A("fromto", VEC, None, n=6, group=TRANSFORM, tip="Alternative frame: segment endpoints"),
+    A("fromto", VEC, None, n=6, group=TRANSFORM, tip="대체 프레임: 선분 양 끝점"),
     _POS, *_ORIENT,
     A("material", REF, ref="material", group=VISUAL),
     A("rgba", RGBA, "0.5 0.5 0.5 1", n=4, group=VISUAL),
     A("group", INT, "0", group=VISUAL),
-    A("contype", INT, "1", group=CONTACT, tip="Contact type bitmask"),
-    A("conaffinity", INT, "1", group=CONTACT, tip="Contact affinity bitmask"),
+    A("contype", INT, "1", group=CONTACT, tip="접촉 종류 비트마스크"),
+    A("conaffinity", INT, "1", group=CONTACT, tip="접촉 상대 비트마스크"),
     A("condim", ENUM, "3", choices=("1", "3", "4", "6"), group=CONTACT),
     A("priority", INT, "0", group=CONTACT),
     A("friction", VEC, "1 0.005 0.0001", nmax=3, group=CONTACT),
@@ -115,7 +115,7 @@ GEOM = [
     A("solref", VEC, _SOLREF, nmax=2, group=CONTACT),
     A("solimp", VEC, _SOLIMP, nmax=5, group=CONTACT),
     A("margin", REAL, "0", group=CONTACT), A("gap", REAL, "0", group=CONTACT),
-    A("mass", REAL, None, group=PHYS, tip="Mass (overrides density)"),
+    A("mass", REAL, None, group=PHYS, tip="질량 (지정하면 밀도 대신 사용)"),
     A("density", REAL, "1000", group=PHYS),
     A("shellinertia", BOOL, "false", group=PHYS),
     A("fitscale", REAL, "1", group=PHYS),
@@ -164,7 +164,7 @@ FRAME = [A("name", NAME), A("childclass", REF, ref="class"), _POS, *_ORIENT]
 # ------------------------------------------------------------------ assets
 MESH = [
     A("name", NAME), A("class", REF, ref="class"),
-    A("file", STR, tip="Mesh file (STL/OBJ/MSH) relative to meshdir"),
+    A("file", STR, tip="메시 파일 (STL/OBJ/MSH), meshdir 기준 경로"),
     A("scale", VEC, "1 1 1", n=3), A("refpos", VEC, "0 0 0", n=3), A("refquat", VEC, "1 0 0 0", n=4),
     A("smoothnormal", BOOL, "false"), A("maxhullvert", INT, "-1"),
     A("vertex", VEC), A("face", VEC), A("normal", VEC), A("texcoord", VEC),
@@ -228,8 +228,8 @@ ACTUATORS = {
         A("actearly", BOOL, "false", group="Dynamics"), A("actdim", INT, "-1", group="Dynamics")],
     "motor": _ACT_COMMON,
     "position": _ACT_COMMON + [A("kp", REAL, "1", group="Dynamics"),
-                               A("kv", REAL, "0", group="Dynamics", tip="MuJoCo >= 3.1 only (not in 3.0.x)"),
-                               A("timeconst", REAL, "0", group="Dynamics", tip="MuJoCo >= 3.1 only")],
+                               A("kv", REAL, "0", group="Dynamics", tip="MuJoCo 3.1 이상에서만 (3.0.x에는 없음)"),
+                               A("timeconst", REAL, "0", group="Dynamics", tip="MuJoCo 3.1 이상에서만")],
     "velocity": _ACT_COMMON + [A("kv", REAL, "1", group="Dynamics")],
     "intvelocity": _ACT_COMMON + [A("kp", REAL, "1", group="Dynamics"), A("kv", REAL, "0", group="Dynamics")],
     "damper": _ACT_COMMON + [A("kv", REAL, "1", group="Dynamics")],

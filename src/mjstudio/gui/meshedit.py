@@ -15,14 +15,14 @@ log = logging.getLogger("mjstudio")
 
 
 class MeshEditMode:
-    """Edits the mesh asset used by one geom. Selection: vertices (click, Shift adds) or one
-    face (click on the surface). Gizmo drags move the selected vertices."""
+    """형상 하나가 쓰는 메시 에셋을 편집합니다. 선택: 정점(클릭, Shift 추가) 또는 면 하나(표면 클릭).
+    이동/회전 도구로 끌면 선택한 정점이 움직입니다."""
 
     def __init__(self, view, geom):
         self.view, self.ed, self.geom = view, view.ed, geom
         self.mesh = MO.geom_mesh_elem(self.ed, geom)
         if self.mesh is None:
-            raise ValueError("the selected geom does not use a mesh")
+            raise ValueError("선택한 형상은 메시를 쓰지 않습니다 (먼저 '메시로 변환')")
         MO.get_mesh_data(self.ed, self.mesh)   # fails early if the data is not editable
         self.sel: list[int] = []
         self.face = -1
@@ -163,7 +163,7 @@ class MeshEditMode:
         data = MO.get_mesh_data(self.ed, self.mesh)
         for k, i in enumerate(self.sel):
             data.V[i] += self.world_to_file(Wn[k] - W0[k])
-        self._apply(data, "Move mesh vertices")
+        self._apply(data, "메시 정점 이동")
 
     def cancel_drag(self) -> None:
         if self._drag0 is not None:
@@ -175,26 +175,31 @@ class MeshEditMode:
             self._drag0 = None
 
     # ------------------------------------------------------------ edits
+    def _say(self, msg: str) -> None:
+        log.warning("%s", msg)
+        self.view.status.emit(msg)
+
     def _apply(self, data, text: str) -> None:
         try:
             MO.set_mesh_data(self.ed, self.mesh, data, text)
         except ValueError as ex:
             log.error("%s: %s", text, ex)
+            self.view.status.emit(f"{text} 실패: {ex}")
 
     def delete(self) -> None:
         data = MO.get_mesh_data(self.ed, self.mesh)
         if self.sel:
             data.delete_vertices(self.sel)
             self.sel = []
-            self._apply(data, "Delete mesh vertices")
+            self._apply(data, "메시 정점 삭제")
         elif self.face >= 0:
             data.delete_faces([self.face])
             self.face = -1
-            self._apply(data, "Delete mesh face")
+            self._apply(data, "메시 면 삭제")
 
     def make_face(self) -> None:
         if len(self.sel) != 3:
-            log.warning("select exactly three vertices to create a face")
+            self._say("면을 만들려면 정점을 정확히 3개 선택하세요 (Shift+클릭)")
             return
         data = MO.get_mesh_data(self.ed, self.mesh)
         i, j, k = self.sel
@@ -202,14 +207,14 @@ class MeshEditMode:
         if n @ (data.V[[i, j, k]].mean(axis=0) - data.V.mean(axis=0)) < 0:
             j, k = k, j                         # face outwards (away from the mesh centre)
         data.add_face(i, j, k)
-        self._apply(data, "Create mesh face")
+        self._apply(data, "메시 면 만들기")
 
     def poke(self) -> None:
         if self.face < 0:
-            log.warning("click on a face first (vertex is added inside that face)")
+            self._say("먼저 면을 클릭하세요 (그 면 안에 정점이 추가됩니다)")
             return
         data = MO.get_mesh_data(self.ed, self.mesh)
         i = data.poke_face(self.face)
         self.face = -1
         self.sel = [i]
-        self._apply(data, "Add mesh vertex")
+        self._apply(data, "메시 정점 추가")

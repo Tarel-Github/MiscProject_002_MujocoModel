@@ -35,6 +35,10 @@ D = math.radians
 
 
 def snap(name, full=False):
+    import time
+    for _ in range(8):                 # 패널 레이아웃이 다 잡힌 뒤에 찍기
+        app.processEvents()
+        time.sleep(0.03)
     v.repaint()
     app.processEvents()
     (w.grab() if full else v.grabFramebuffer()).save(str(out / f"{name}.png"))
@@ -51,6 +55,20 @@ ed.reset_pose()
 v.reset_camera()
 ed.select([ed.doc.find_named("joint", "index_pip_left")])
 snap("editor_overview", full=True)
+# 폴리곤 편집: 정강이 캡슐을 편집 가능한 메시로 변환하고 정점 몇 개를 선택한 화면 (끝나면 되돌림)
+from PySide6.QtWidgets import QMessageBox  # noqa: E402
+QMessageBox.question = staticmethod(lambda *a, **k: QMessageBox.Yes)
+shin = ed.doc.find_named("geom", "shin_left")
+ed.select([shin])
+look("shin_left", 0.9, 150, -15)
+w.toggle_mesh_edit()
+mode = v.mesh_mode
+W = mode.world_vertices()
+mode.sel = [int(i) for i in W[:, 2].argsort()[-6:]]    # 위쪽 끝 정점 6개
+snap("polygon_edit", full=True)
+w.toggle_mesh_edit()
+ed.undo_step()
+ed.select([ed.doc.find_named("joint", "index_pip_left")])
 # hand: fist group half closed + thumb opposition
 for g in prj.groups:
     if g.name == "fist_left":

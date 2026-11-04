@@ -72,7 +72,7 @@ def test_edit_mesh_with_undo_and_save(ed, tmp_path):
     ed.redo_step()
     p = tmp_path / "out" / "model.xml"
     notes = ed.save(p)
-    assert any("wrote" in n for n in notes)
+    assert any("저장:" in n for n in notes)
     m2 = mujoco.MjModel.from_xml_path(str(p))
     assert M.from_compiled(m2, 0).V[:, 2].max() == pytest.approx(0.1)
 
@@ -126,3 +126,39 @@ def test_import_blender_glb_as_jaw_mesh(ed):
     g = r["geoms"][0]
     assert g.getparent() is jaw and ed.model.geom_bodyid[ed.idmap.id(g)] == ed.idmap.id(jaw)
     assert r["stats"][0] > 4000
+
+
+def test_convert_primitives_to_editable_mesh(humanoid_path):
+    """Capsules (incl. fromto from a default class), boxes, spheres become meshes in place."""
+    e = Editor()
+    e.open(humanoid_path)
+    for name in ("shin_left", "thigh_right", "head", "torso"):
+        g = e.doc.find_named("geom", name)
+        gid = e.idmap.id(g)
+        before = e.data.geom_xpos[gid].copy()
+        mass0 = e.model.body_mass[e.model.geom_bodyid[gid]]
+        me = MO.convert_geom_to_mesh(e, g)
+        assert e.result.ok, (name, e.result.error)
+        gid = e.idmap.id(g)
+        assert e.model.geom_type[gid] == mujoco.mjtGeom.mjGEOM_MESH
+        assert np.allclose(e.data.geom_xpos[gid], before, atol=2e-3), name   # same place
+        assert abs(e.model.body_mass[e.model.geom_bodyid[gid]] - mass0) / mass0 < 0.05
+        assert MO.get_mesh_data(e, me).nv > 8
+    e.undo_step()
+    assert e.doc.find_named("geom", "torso").get("type") is None
+
+
+def test_single_finger_part_attaches_to_palm():
+    from mjstudio.core.parts import import_part
+    from mjstudio.library import anatomy as A
+    e = Editor()
+    e.new("f")
+    A.build_hand(e, None, "left", pos=(0, 0, 1))
+    palm = e.doc.find_named("body", "hand_left")
+    nj, nu = e.model.njnt, e.model.nu
+    for kind in ("index", "thumb"):
+        part = A.finger_part(kind, "left")
+        out = import_part(e, part, palm, pos=A.finger_default_pos(kind, "left") + [0, 0.004, 0], prefix="new_")
+        assert e.result.ok, e.result.error
+    assert e.model.njnt == nj + 8 and e.model.nu == nu + 8      # 4 joints + 4 actuators each
+    assert e.doc.find_named("joint", "new_index_pip_left") is not None

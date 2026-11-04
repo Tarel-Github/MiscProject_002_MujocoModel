@@ -230,3 +230,84 @@ def test_mesh_edit_mode_and_face_panel(app, win, monkeypatch):
     _render(app, win)
     m, dd = ed.model, ed.data
     assert m.nskin == 1
+
+
+def test_add_panel_finger_mesh_import_and_context_menu(app, win, tmp_path, monkeypatch):
+    """'추가·편집' 패널: 손가락 하나 추가, 내 3D 모델 붙이기, 기본 형상 → 메시 변환 후 폴리곤 편집, 우클릭 메뉴."""
+    from PySide6.QtWidgets import QDialog, QDockWidget, QFileDialog, QMessageBox, QPushButton
+    from mjstudio.core import meshes as M
+    from mjstudio.gui import dialogs
+    from mjstudio.gui.mainwin import GUIDE
+    from mjstudio.library import anatomy as A
+    def fail(*a, **k):
+        raise AssertionError(f"unexpected message box: {a[1:3]}")
+    for nm in ("information", "warning", "critical"):
+        monkeypatch.setattr(QMessageBox, nm, staticmethod(fail))
+    ed = win.ed
+    docks = {d.objectName(): d for d in win.findChildren(QDockWidget)}
+    assert docks["addedit"].windowTitle() == "추가·편집" and docks["addedit"].widget() is win.addp
+    buttons = {b.text(): b for b in win.addp.findChildren(QPushButton)}
+    for t in ("손가락 하나…", "3D 모델 파일 붙이기 (OBJ·STL·GLB)…", "폴리곤 편집 시작 / 끝내기", "형상을 메시로 변환"):
+        assert t in buttons, t
+    assert "손가락" in GUIDE and "폴리곤" in GUIDE
+    # 1) 손가락 하나: 손 바디를 선택하고 패널 버튼 클릭 (대화상자는 기본값으로 확인)
+    hand = ed.doc.find_named("body", "hand_left")
+    ed.select([hand])
+    app.processEvents()
+    assert "hand_left" in win.addp.target.text()
+    dlg = dialogs.FingerDialog("hand_left", lambda k, s: A.finger_default_pos(k, s))
+    dlg.kind.setCurrentIndex(4)                        # 엄지: 기본 위치가 바뀐다
+    assert np.allclose([s.value() for s in dlg.pos], A.finger_default_pos("thumb", "left"), atol=1e-4)
+    monkeypatch.setattr(dialogs.FingerDialog, "exec", lambda self: QDialog.Accepted)
+    nj, nu = ed.model.njnt, ed.model.nu
+    buttons["손가락 하나…"].click()
+    assert ed.result.ok, ed.result.error
+    assert ed.model.njnt == nj + 4 and ed.model.nu == nu + 4    # 검지: MCP 굽힘·벌림, PIP, DIP
+    new = ed.selection[-1]
+    assert new.tag == "body" and new.getparent() is hand
+    assert any((j.get("name") or "").endswith("index_pip_left") for j in new.iter("joint"))
+    # 2) 내 3D 모델(OBJ, mm 단위)을 선택한 바디에 붙이기
+    obj = tmp_path / "bracket.obj"
+    obj.write_bytes(M.write_obj(M.box(20, 10, 5)))     # mm 단위로 만든 모델
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: (str(obj), "")))
+
+    def accept_mm(self):
+        self.units.setCurrentIndex(2)                  # 밀리미터
+        return QDialog.Accepted
+    monkeypatch.setattr(dialogs.MeshImportDialog, "exec", accept_mm)
+    torso = ed.doc.find_named("body", "torso")
+    ed.select([torso])
+    ng = ed.model.ngeom
+    buttons["3D 모델 파일 붙이기 (OBJ·STL·GLB)…"].click()
+    assert ed.result.ok, ed.result.error
+    assert ed.model.ngeom == ng + 2                     # 보이는 형상 + 충돌 형상
+    g = ed.selection[-1]
+    assert g.tag == "geom" and g.getparent() is torso
+    gid = ed.idmap.id(g)
+    assert ed.model.geom_rbound[gid] == pytest.approx(np.linalg.norm([0.02, 0.01, 0.005]), rel=0.05)
+    # 3) 기본 형상(구) → 메시로 변환 → 폴리곤 편집 → Esc
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes))
+    head = ed.doc.find_named("geom", "head")
+    ed.select([head])
+    buttons["폴리곤 편집 시작 / 끝내기"].click()
+    assert ed.doc.get(head, "type") == "mesh" and win.view.mesh_mode is not None
+    assert "편집 중" in win.addp.poly_state.text()
+    assert "폴리곤 편집" in win.view.hud_texts()[1]
+    QTest.keyClick(win.view, Qt.Key_Escape)
+    assert win.view.mesh_mode is None and "편집 중" not in win.addp.poly_state.text()
+    ed.undo_step()
+    assert (ed.doc.get(head, "type") or "sphere") == "sphere"
+    # 4) 3D 화면 오른쪽 클릭(끌지 않음) → 그 자리 요소의 메뉴
+    seen = []
+    monkeypatch.setattr(win, "_exec_menu", lambda menu, gpos: seen.append([x.text() for x in menu.actions()]))
+    _render(app, win)
+    bid = ed.idmap.id(ed.doc.find_named("body", "head"))
+    sx, sy, _ = win.view._proj.project(ed.data.xpos[bid])
+    dpr = win.view.devicePixelRatioF()
+    QTest.mouseClick(win.view, Qt.RightButton, Qt.NoModifier, QPoint(int(sx / dpr), int(sy / dpr)))
+    assert seen and "추가" in seen[-1] and "폴리곤 편집 시작 / 끝내기" in seen[-1] and "삭제" in seen[-1]
+    assert [e.get("name") for e in ed.selection] == ["head"]
+    # 빈 모델에서는 화면 아래에 '추가·편집' 안내
+    ed.new("empty")
+    app.processEvents()
+    assert "추가·편집" in win.view.hud_texts()[2]

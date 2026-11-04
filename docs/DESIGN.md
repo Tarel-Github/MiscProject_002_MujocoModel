@@ -105,7 +105,7 @@ MJCF로 표현할 수 없는 데이터(관절 그룹, 향후 표정 리그)는 p
 | 평면 메시 | 시각 전용이면 허용 | 메시 단계에서 부피 계산 → `<mesh inertia="shell">` 필요 (3.0.1에는 속성 없음) | 기능 감지(`compiler.supports`) 후 지원 시에만 부여 |
 | `MjvScene.skinvert` 덮어쓰기, `mjr_uploadMesh` | 동작 | 동작 | 양쪽 테스트 통과 |
 
-검증: 전체 테스트 158개가 MuJoCo 3.0.1/numpy 1.26과 MuJoCo 3.17.0/numpy 2.5.4 양쪽에서 통과(Linux, Python 3.12).
+검증: 전체 테스트 161개가 MuJoCo 3.0.1/numpy 1.26과 MuJoCo 3.17.0/numpy 2.5.4 양쪽에서 통과(Linux, Python 3.12).
 
 ## 8. 메시 파이프라인 (Phase 3)
 
@@ -145,9 +145,22 @@ FaceRig (머리 국소 좌표)                         MuJoCo
 `core/sensing.py`의 `SensorBus`는 MuJoCo 센서를 종류별 그룹(touch, proprio_pos, proprio_vel, vestibular, pose, force, effort)으로 묶어
 관측 벡터와 레이아웃 명세(`spec()`)를 제공하고, `register()`로 MuJoCo 밖의 채널(표정 상태, 시선, 향후 통각·피부 모델)을 같은 `MjData` 위에 추가합니다.
 
-## 11. 제약사항 (사실대로)
+## 11. 한국어 UI와 기능 배치
+
+- 화면 문구는 코드에 한국어로 직접 씁니다(번역 파일 없음). MJCF 태그·속성 이름(`fromto`, `damping` 등)은 파일 형식 용어라 그대로 두고,
+  그룹 제목·툴팁·트리의 종류 열은 한국어(`gui/ko.py`, `props.GROUP_KO`)로 표시합니다. 파일에는 항상 원래 MJCF 이름이 저장됩니다.
+- 표정 파라미터·프리셋은 한국어 이름으로 보이고, 외부 API 이름(`blink_left`, `smile` 등)은 툴팁으로 남겨 스크립트와 화면을 대응시킵니다.
+- 뷰포트 HUD는 MuJoCo 내장 글꼴(ASCII 전용)로는 한글을 그릴 수 없어 `mjr_overlay` 대신 뷰포트 위 Qt 라벨(마우스 이벤트 통과)로 그립니다.
+- 한글 글꼴은 `theme._hangul_font()`가 대체 글꼴 목록(맑은 고딕, Apple SD Gothic Neo, Noto Sans CJK KR, 나눔고딕)에서 설치된 것을 골라 지정합니다.
+- 추가·편집 기능은 `gui/addpanel.py`의 상시 도크(`추가·편집`)에 모으고, 같은 기능을 메뉴와 뷰포트 오른쪽 클릭(끌지 않은 클릭) 메뉴에도 둡니다.
+  폴리곤 편집은 기본 형상이면 `meshops.convert_geom_to_mesh()`로 같은 위치·크기의 메시로 변환한 뒤 시작합니다
+  (`fromto`가 기본 클래스에서 상속된 경우 `doc.class_without()`으로 상속받지 않는 부모 클래스로 옮기고 나머지 상속값은 명시값으로 복사).
+- 손가락 하나 추가는 `anatomy.finger_part()`로 별도 문서에서 손가락 하나를 만든 뒤 일반 부품 조립(`parts.import_part`)으로 붙입니다.
+
+## 12. 제약사항 (사실대로)
 
 - Windows 11 GUI 실행은 검증하지 못함. 개발·검증은 Linux + Xvfb + Mesa 소프트웨어 렌더러.
+- MuJoCo 엔진이 내는 컴파일 오류 문장은 영어 원문 그대로 표시됨(오류 위치 요소는 트리에 빨간색으로 표시).
 - `<include>`는 불러올 때 인라인화되어 단일 파일로 저장됨.
 - 얼굴 표정은 에디터 뷰포트와 API에서 적용됨. 순수 MuJoCo 뷰어는 스킨을 휴지 형태 + 턱 추종으로만 보여 줌(Shape Key 미적용).
 - 절차적 얼굴은 양식화된 형상이며(사실적 얼굴 아님), 턱을 크게 열면 LBS 경계에 주름이 보임. 사실적 얼굴은 Blender에서 만들어 GLB로 가져오는 경로를 권장.

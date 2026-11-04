@@ -1,9 +1,9 @@
-"""MuJoCo 3D viewport.
+"""MuJoCo 3D 화면(뷰포트).
 
-Rendering uses MuJoCo's own renderer (mjr_render) into MuJoCo's offscreen
-framebuffer, then a small legacy-GL overlay pass (gizmos, joint ranges) and a
-blit into the QOpenGLWidget framebuffer. Requires an OpenGL *compatibility*
-profile context (see app.py).
+MuJoCo 자체 렌더러(mjr_render)로 MuJoCo 오프스크린 프레임버퍼에 그린 뒤, 레거시 GL로
+기즈모·관절 범위 같은 보조 표시를 덧그리고 QOpenGLWidget 프레임버퍼로 복사합니다.
+OpenGL *호환(compatibility)* 프로파일 컨텍스트가 필요합니다 (app.py 참고).
+화면 위 글자(HUD)는 MuJoCo 내장 글꼴이 한글을 그리지 못하므로 Qt 라벨로 표시합니다.
 """
 from __future__ import annotations
 
@@ -14,8 +14,9 @@ import mujoco
 import numpy as np
 from OpenGL import GL
 from PySide6.QtCore import QPointF, Qt, Signal
-from PySide6.QtGui import QMouseEvent, QWheelEvent
+from PySide6.QtGui import QMouseEvent, QTextDocument, QWheelEvent
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
+from PySide6.QtWidgets import QLabel
 
 from ..core import mathx as mx
 from ..core.editor import Editor
@@ -242,6 +243,8 @@ class Gizmo:
 class Viewport(QOpenGLWidget):
     picked = Signal(object, bool)          # element or None, additive
     status = Signal(str)
+    contextRequested = Signal(object, object)  # 오른쪽 클릭(끌지 않음): 요소 또는 None, 전역 좌표
+    meshModeChanged = Signal()                 # 폴리곤 편집 모드 시작/끝
 
     def __init__(self, ed: Editor, parent=None):
         super().__init__(parent)
@@ -271,6 +274,10 @@ class Viewport(QOpenGLWidget):
         self.setMouseTracking(True)
         self.setMinimumSize(320, 240)
         self.opt.flags[mujoco.mjtVisFlag.mjVIS_JOINT] = 0
+        self._hud_l = self._hud_label()
+        self._hud_r = self._hud_label()
+        self._hud_b = self._hud_label()
+        self._hud_b.setWordWrap(True)
         ed.state_changed.connect(self.update)
         ed.selection_changed.connect(lambda *_: self.update())
         ed.compiled.connect(lambda *_: self.update())
@@ -345,12 +352,11 @@ class Viewport(QOpenGLWidget):
         self._proj = CamProj(scn, w, h)
         GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, con.offFBO)
         self._overlay(m, d, self._proj)
-        if self.hud:
-            self._draw_hud(vp)
         GL.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, con.offFBO)
         GL.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, self.defaultFramebufferObject())
         GL.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL.GL_COLOR_BUFFER_BIT, GL.GL_NEAREST)
         GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, self.defaultFramebufferObject())
+        self._update_hud()
 
     def request_mesh_upload(self, mesh_id: int) -> None:
         self._uploads.add(int(mesh_id))
@@ -361,6 +367,7 @@ class Viewport(QOpenGLWidget):
             self.mesh_mode.cancel_drag()
         self.mesh_mode = mode
         self.update()
+        self.meshModeChanged.emit()
 
     def write_rigs(self, m, d, scn) -> None:
         """Expression rigs: evaluate time tracks at the simulation time and deform their skins."""
@@ -606,22 +613,73 @@ class Viewport(QOpenGLWidget):
         GL.glEnd()
         GL.glViewport(0, 0, proj.w, proj.h)
 
-    def _draw_hud(self, vp) -> None:
+    # ------------------------------------------------------------- HUD (Qt 라벨)
+    def _hud_label(self) -> QLabel:
+        lbl = QLabel(self)
+        lbl.setTextFormat(Qt.RichText)
+        lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
+        lbl.setStyleSheet("QLabel{background:rgba(16,18,22,190);color:#e6e6e6;border-radius:4px;padding:4px 8px;}")
+        lbl.hide()
+        return lbl
+
+    def hud_texts(self) -> tuple[str, str, str]:
+        """(왼쪽 위, 오른쪽 위, 아래) 안내 문구. 빈 문자열이면 숨김."""
+        if not self.hud:
+            return "", "", ""
+        left, right, bottom = [], [], ""
         sim = getattr(self, "sim", None)
-        left = []
-        right = []
-        if sim is not None and sim.running:
-            left.append(("SIM", f"t = {self.ed.data.time:.3f} s"))
+        if sim is not None and sim.running and self.ed.data is not None:
+            left.append(f"<b style='color:#7fd18b'>시뮬레이션</b> t = {self.ed.data.time:.3f} s")
         if self.ed.result is not None and not self.ed.result.ok:
-            left.append(("ERROR", "model has errors - showing last valid model"))
+            left.append("<b style='color:#ff6b6b'>오류</b> 모델에 오류가 있어 마지막 정상 모델을 표시 중")
+        if self.mesh_mode is not None:
+            right.append(f"<b style='color:#ffb347'>폴리곤 편집</b> {self.ed.doc.label(self.mesh_mode.geom)}")
+            bottom = ("정점 클릭 = 선택 · Shift+클릭 = 추가 선택 · 이동 도구(W)로 끌기 · Del 삭제 · "
+                      "F 면 만들기 · 면 클릭 후 P 정점 추가 · Esc 끝내기")
         if self.gizmo.mode != "none":
-            right.append((self.gizmo.mode.upper(), self.gizmo.space))
-        if left:
-            mujoco.mjr_overlay(mujoco.mjtFont.mjFONT_NORMAL, mujoco.mjtGridPos.mjGRID_TOPLEFT, vp,
-                               "\n".join(a for a, _ in left), "\n".join(b for _, b in left), self.con)
-        if right:
-            mujoco.mjr_overlay(mujoco.mjtFont.mjFONT_NORMAL, mujoco.mjtGridPos.mjGRID_TOPRIGHT, vp,
-                               "\n".join(a for a, _ in right), "\n".join(b for _, b in right), self.con)
+            right.append(f"{'이동' if self.gizmo.mode == 'translate' else '회전'} 도구 · "
+                         f"{'로컬' if self.gizmo.space == 'local' else '월드'} 축")
+        m = self.ed.model
+        if not bottom and m is not None and m.nbody <= 1:
+            bottom = ("모델이 비어 있습니다. 왼쪽 아래 <b>'추가·편집'</b> 패널에서 바디·형상·신체 부품·"
+                      "3D 모델을 추가하세요. (도움말: F1)")
+        return "<br>".join(left), "<br>".join(right), bottom
+
+    def _update_hud(self) -> None:
+        tl, tr, bt = self.hud_texts()
+        for lbl, txt in ((self._hud_l, tl), (self._hud_r, tr), (self._hud_b, bt)):
+            if lbl.text() != txt:
+                lbl.setText(txt)
+            vis = bool(txt)
+            if lbl.isVisible() != vis:
+                lbl.setVisible(vis)
+        self._place_hud()
+
+    def _place_hud(self) -> None:
+        m = 8
+        if self._hud_l.isVisible():
+            self._hud_l.adjustSize()
+            self._hud_l.move(m, m)
+        if self._hud_r.isVisible():
+            self._hud_r.adjustSize()
+            self._hud_r.move(max(m, self.width() - self._hud_r.width() - m), m)
+        if self._hud_b.isVisible():
+            # 한 줄에 들어가면 한 줄로, 아니면 화면 폭에 맞춰 줄바꿈 (QTextDocument로 크기 계산)
+            doc = QTextDocument()
+            doc.setDefaultFont(self._hud_b.font())
+            doc.setDocumentMargin(0)
+            doc.setHtml(self._hud_b.text())
+            pad_w, pad_h = 16 + 4, 8 + 4                        # 스타일시트 padding 4px 8px + 여유
+            avail = max(self.width() - 2 * m, 120)
+            w = min(int(doc.idealWidth()) + pad_w + 1, avail)
+            doc.setTextWidth(w - pad_w)
+            h = int(doc.size().height()) + pad_h
+            self._hud_b.setFixedSize(w, h)
+            self._hud_b.move((self.width() - w) // 2, self.height() - h - m)
+
+    def resizeEvent(self, ev) -> None:
+        super().resizeEvent(ev)
+        self._place_hud()
 
     # ------------------------------------------------------------- picking
     def _dev(self, pos: QPointF) -> tuple[float, float]:
@@ -751,8 +809,8 @@ class Viewport(QOpenGLWidget):
         self.gizmo.origin = o + dpos
         if self.gizmo.space == "local":
             self.gizmo.R = mx.q2mat(dq) @ st["R"]
-        txt = (f"Δ = {mx.fmt_vec(dpos, 4)} m" if h in ("x", "y", "z", "xy", "yz", "xz", "view")
-               else f"Δθ = {math.degrees(mx.q2axang(dq)[1]):.1f}°")
+        txt = (f"이동 Δ = {mx.fmt_vec(dpos, 4)} m" if h in ("x", "y", "z", "xy", "yz", "xz", "view")
+               else f"회전 Δθ = {math.degrees(mx.q2axang(dq)[1]):.1f}°")
         self.status.emit(txt)
 
     def mouseMoveEvent(self, ev: QMouseEvent) -> None:
@@ -791,7 +849,7 @@ class Viewport(QOpenGLWidget):
     def mouseReleaseEvent(self, ev: QMouseEvent) -> None:
         if self._drag is not None and self._ts is not None:
             h = self._drag["h"]
-            self._ts.commit("Rotate" if h.startswith("r") else "Move")
+            self._ts.commit("회전" if h.startswith("r") else "이동")
             self._ts = None
             self._drag = None
             self.gizmo.active = None
@@ -810,6 +868,15 @@ class Viewport(QOpenGLWidget):
             e, _ = self.pick(sx, sy)
             add = bool(ev.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier))
             self.picked.emit(e, add)
+        elif ev.button() == Qt.RightButton and not moved:
+            e = None
+            if self.mesh_mode is None:
+                sx, sy = self._dev(ev.position())
+                e, _ = self.pick(sx, sy)
+            self._press = None
+            self._last = None
+            self.contextRequested.emit(e, self.mapToGlobal(ev.position().toPoint()))
+            return
         self._press = None
         self._last = None
 

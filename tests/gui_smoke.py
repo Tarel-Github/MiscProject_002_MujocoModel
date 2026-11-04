@@ -105,7 +105,7 @@ def gizmo_drag():
     d = x1 - drag_info["x0"]
     print("gizmo drag moved hand by", d.round(4), "pos attr", drag_info["pos0"], "->", hand.get("pos"))
     assert d[0] > 0.01 and abs(d[1]) < 1e-6 and abs(d[2]) < 1e-6, "drag should move along +x only"
-    assert w.ed.undo.undo_text() == "Move"
+    assert w.ed.undo.undo_text() == "이동"
 
 
 def undo_drag():

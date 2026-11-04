@@ -62,7 +62,7 @@ def _index(body: Element, tag: str) -> int:
 def _name(ed: Editor, kind: str, name: str | None, base: str) -> str:
     if name:
         if name in ed.doc.names(kind):
-            raise ValueError(f"a {kind} named '{name}' already exists")
+            raise ValueError(f"이름이 '{name}'인 {kind}이(가) 이미 있습니다")
         return name
     return ed.doc.unique_name(kind, base)
 
@@ -76,8 +76,8 @@ def add_body(ed: Editor, parent: Element | None = None, name: str | None = None,
     b = make("body", name=nm, pos=pos, quat=quat, **attrs)
     if quat is not None and mx.qangle(quat, mx.QID) < 1e-12:
         del b.attrib["quat"]
-    with ed.batch(f"Add body {nm}"):
-        ed.push(Insert(parent, _index(parent, "body"), b, f"Add body {nm}"))
+    with ed.batch(f"바디 추가 {nm}"):
+        ed.push(Insert(parent, _index(parent, "body"), b, f"바디 추가 {nm}"))
         if geom:
             add_geom(ed, b, geom)
     return b
@@ -90,18 +90,18 @@ def add_geom(ed: Editor, parent: Element | None, gtype: str = "sphere", name: st
         _name(ed, "geom", name, "geom")
     g = make("geom", name=name, type=gtype, size=size if size is not None else GEOM_SIZE.get(gtype),
              pos=pos, quat=_q(quat), **attrs)
-    ed.push(Insert(parent, _index(parent, "geom"), g, f"Add {gtype} geom"))
+    ed.push(Insert(parent, _index(parent, "geom"), g, f"{gtype} 형상 추가"))
     return g
 
 
 def add_joint(ed: Editor, body: Element, jtype: str = "hinge", name: str | None = None, axis=(0, 0, 1),
               pos=None, range_rad=None, **attrs) -> Element:
     if body is None or body.tag != "body":
-        raise ValueError("joints must be added to a body")
+        raise ValueError("관절은 바디에만 추가할 수 있습니다")
     nm = _name(ed, "joint", name, f"{body.get('name') or 'body'}_{jtype}")
     if jtype == "free":
         if body.getparent().tag != "worldbody":
-            raise ValueError("free joints are only allowed in top-level bodies (children of the world)")
+            raise ValueError("자유 관절은 월드 바로 아래 바디에만 둘 수 있습니다")
         j = make("freejoint", name=nm)
     else:
         rng = None
@@ -127,8 +127,8 @@ def add_joint(ed: Editor, body: Element, jtype: str = "hinge", name: str | None 
                 if jtype in ("hinge", "ball"):
                     lo, hi = ed.doc.from_rad(lo), ed.doc.from_rad(hi)
                 j.set("range", mx.fmt_vec([lo, hi]))
-    with ed.structural(f"Add {jtype} joint {nm}"):  # qpos layout changes -> remap keyframes
-        ed.push(Insert(body, _index(body, "joint"), j, f"Add {jtype} joint {nm}"))
+    with ed.structural(f"{jtype} 관절 추가 {nm}"):  # qpos layout changes -> remap keyframes
+        ed.push(Insert(body, _index(body, "joint"), j, f"{jtype} 관절 추가 {nm}"))
     return j
 
 
@@ -137,7 +137,7 @@ def add_site(ed: Editor, parent: Element | None, name: str | None = None, pos=(0
     parent = body_target(ed, parent)
     nm = _name(ed, "site", name, "site")
     s = make("site", name=nm, type=None if stype == "sphere" else stype, pos=pos, size=size, **attrs)
-    ed.push(Insert(parent, _index(parent, "site"), s, f"Add site {nm}"))
+    ed.push(Insert(parent, _index(parent, "site"), s, f"사이트 추가 {nm}"))
     return s
 
 
@@ -148,7 +148,7 @@ def add_camera(ed: Editor, parent: Element | None, name: str | None = None, pos=
     if quat is None:
         quat = mx.xyaxes2q([1, 0, 0, 0, 0.7, 0.7])
     c = make("camera", name=nm, pos=pos, quat=_q(quat), **attrs)
-    ed.push(Insert(parent, _index(parent, "camera"), c, f"Add camera {nm}"))
+    ed.push(Insert(parent, _index(parent, "camera"), c, f"카메라 추가 {nm}"))
     return c
 
 
@@ -157,19 +157,19 @@ def add_light(ed: Editor, parent: Element | None, name: str | None = None, pos=(
     parent = body_target(ed, parent)
     nm = _name(ed, "light", name, "light")
     li = make("light", name=nm, pos=pos, dir=dir, **attrs)
-    ed.push(Insert(parent, _index(parent, "light"), li, f"Add light {nm}"))
+    ed.push(Insert(parent, _index(parent, "light"), li, f"조명 추가 {nm}"))
     return li
 
 
 def add_inertial(ed: Editor, body: Element, mass: float, diaginertia=None, pos=(0, 0, 0)) -> Element:
     old = children(body, "inertial")
     if old:
-        raise ValueError("body already has an <inertial> element")
+        raise ValueError("바디에 이미 <inertial> 요소가 있습니다")
     if diaginertia is None:
         r = 0.05
         diaginertia = [0.4 * mass * r * r] * 3
     e = make("inertial", pos=pos, mass=mass, diaginertia=diaginertia)
-    ed.push(Insert(body, 0, e, "Add inertial"))
+    ed.push(Insert(body, 0, e, "관성 추가"))
     return e
 
 
@@ -181,9 +181,9 @@ def add_actuator(ed: Editor, joint: Element | str, kind: str = "position", name:
         joint = ed.doc.find_named("joint", jn)
     jn = joint.get("name") if joint is not None else None
     if not jn:
-        raise ValueError("actuators need a named joint")
+        raise ValueError("액추에이터에는 이름이 있는 관절이 필요합니다")
     if kind not in ACTUATORS:
-        raise ValueError(f"unknown actuator type {kind}")
+        raise ValueError(f"알 수 없는 액추에이터 종류 {kind}")
     nm = _name(ed, "actuator", name, f"{kind[:3]}_{jn}")
     if kind == "position" and "ctrlrange" not in attrs:
         rng = ed.doc.get(joint, "range")
@@ -194,26 +194,26 @@ def add_actuator(ed: Editor, joint: Element | str, kind: str = "position", name:
                 attrs["ctrllimited"] = "true"
     a = make(kind, name=nm, joint=jn, **attrs)
     sec = ed.doc.section("actuator")
-    with ed.structural(f"Add actuator {nm}"):
+    with ed.structural(f"액추에이터 추가 {nm}"):
         if sec is None:
             sec = make("actuator")
-            ed.push(Insert(ed.doc.root, _section_index(ed, "actuator"), sec, "Add actuator section"))
-        ed.push(Insert(sec, len(sec), a, f"Add actuator {nm}"))
+            ed.push(Insert(ed.doc.root, _section_index(ed, "actuator"), sec, "actuator 섹션 추가"))
+        ed.push(Insert(sec, len(sec), a, f"액추에이터 추가 {nm}"))
     return a
 
 
 def add_sensor(ed: Editor, kind: str, name: str | None = None, **attrs) -> Element:
     if kind not in SENSORS:
-        raise ValueError(f"unknown sensor type {kind}")
+        raise ValueError(f"알 수 없는 센서 종류 {kind}")
     target = attrs.get("joint") or attrs.get("site") or attrs.get("body") or attrs.get("objname") or kind
     nm = _name(ed, "sensor", name, f"{kind}_{target}")
     s = make(kind, name=nm, **attrs)
     sec = ed.doc.section("sensor")
-    with ed.batch(f"Add sensor {nm}"):
+    with ed.batch(f"센서 추가 {nm}"):
         if sec is None:
             sec = make("sensor")
-            ed.push(Insert(ed.doc.root, _section_index(ed, "sensor"), sec, "Add sensor section"))
-        ed.push(Insert(sec, len(sec), s, f"Add sensor {nm}"))
+            ed.push(Insert(ed.doc.root, _section_index(ed, "sensor"), sec, "sensor 섹션 추가"))
+        ed.push(Insert(sec, len(sec), s, f"센서 추가 {nm}"))
     return s
 
 
@@ -229,11 +229,11 @@ def add_keyframe(ed: Editor, name: str | None = None, from_state: bool = True) -
             k.set("mpos", mx.fmt_vec(d.mocap_pos.ravel()))
             k.set("mquat", mx.fmt_vec(d.mocap_quat.ravel()))
     sec = ed.doc.section("keyframe")
-    with ed.batch(f"Add keyframe {nm}"):
+    with ed.batch(f"키프레임 추가 {nm}"):
         if sec is None:
             sec = make("keyframe")
-            ed.push(Insert(ed.doc.root, _section_index(ed, "keyframe"), sec, "Add keyframe section"))
-        ed.push(Insert(sec, len(sec), k, f"Add keyframe {nm}"))
+            ed.push(Insert(ed.doc.root, _section_index(ed, "keyframe"), sec, "keyframe 섹션 추가"))
+        ed.push(Insert(sec, len(sec), k, f"키프레임 추가 {nm}"))
     return k
 
 
@@ -282,7 +282,7 @@ def _remap_refs(e: Element, mapping: dict[tuple[str, str], str]) -> bool:
 
 def duplicate(ed: Editor, elems: list[Element], rename: Callable[[str], str] | None = None,
               with_dependents: bool = True, transform: Callable[[Element], None] | None = None,
-              text: str = "Duplicate") -> list[Element]:
+              text: str = "복제") -> list[Element]:
     """Copy elements (with unique names) and, optionally, the actuators/sensors/
     tendons/equalities/contacts that reference them, with references remapped."""
     top = [e for e in elems if e.getparent() is not None and not any(a in elems for a in e.iterancestors())]
@@ -419,7 +419,7 @@ def mirror_duplicate(ed: Editor, e: Element, axis: int = 1, rename: Callable[[st
             parent.remove(cp)
 
     return duplicate(ed, [e], rename=rename, with_dependents=with_dependents, transform=tf,
-                     text=f"Mirror {ed.doc.label(e)}")
+                     text=f"좌우 대칭 복제 {ed.doc.label(e)}")
 
 
 _SIDE_PAIRS = [("_left", "_right"), ("_l", "_r"), ("left_", "right_"), ("l_", "r_"), ("Left", "Right"),
@@ -438,7 +438,7 @@ def swap_side(name: str) -> str:
 def set_joint_range_deg(ed: Editor, joint: Element, lo_deg: float, hi_deg: float) -> None:
     """Set a hinge/ball range given in degrees, written in the document's angle unit."""
     lo, hi = ed.doc.from_rad(math.radians(lo_deg)), ed.doc.from_rad(math.radians(hi_deg))
-    ed.set_attr(joint, "range", mx.fmt_vec([lo, hi]), "Set joint range")
+    ed.set_attr(joint, "range", mx.fmt_vec([lo, hi]), "관절 범위 설정")
 
 
 def couple_joints(ed: Editor, joint1: Element | str, joint2: Element | str, ratio: float = 1.0,
@@ -448,15 +448,15 @@ def couple_joints(ed: Editor, joint1: Element | str, joint2: Element | str, rati
     def nm(j):
         e = ed.doc.find_named("joint", j) if isinstance(j, str) else j
         if e is None or not e.get("name"):
-            raise ValueError("couple_joints needs two named joints")
+            raise ValueError("관절 연동에는 이름이 있는 관절 두 개가 필요합니다")
         return e.get("name")
     j1, j2 = nm(joint1), nm(joint2)
     eq = make("joint", name=name or ed.doc.unique_name("equality", f"couple_{j1}_{j2}"), joint1=j1, joint2=j2,
               polycoef=mx.fmt_vec([offset, ratio, 0, 0, 0]))
     sec = ed.doc.section("equality")
-    with ed.batch(f"Couple {j1} to {j2}"):
+    with ed.batch(f"관절 연동 {j1} ← {j2}"):
         if sec is None:
             sec = make("equality")
-            ed.push(Insert(ed.doc.root, _section_index(ed, "equality"), sec, "Add equality section"))
-        ed.push(Insert(sec, len(sec), eq, "Add joint coupling"))
+            ed.push(Insert(ed.doc.root, _section_index(ed, "equality"), sec, "equality 섹션 추가"))
+        ed.push(Insert(sec, len(sec), eq, "관절 연동 추가"))
     return eq

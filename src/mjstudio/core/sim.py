@@ -104,7 +104,7 @@ class Simulator:
         d, m = self.ed.data, self.ed.model
         msgs = []
         if not (np.all(np.isfinite(d.qpos)) and np.all(np.isfinite(d.qvel))):
-            msgs.append("non-finite qpos/qvel")
+            msgs.append("qpos/qvel 값이 유한하지 않음")
         cur = self._warn_counts()
         if self._warn is not None and cur is not None:
             for i, (a, b) in enumerate(zip(self._warn, cur)):
@@ -112,10 +112,10 @@ class Simulator:
                     msgs.append(f"{mujoco.mjtWarning(i).name} (+{b - a})")
         self._warn = cur
         if m.nv and float(np.max(np.abs(d.qvel))) > 1e4:
-            msgs.append(f"exploding velocity |qvel|max={float(np.max(np.abs(d.qvel))):.3g}")
+            msgs.append(f"속도 발산 |qvel|최대={float(np.max(np.abs(d.qvel))):.3g}")
         if msgs:
             self.last_issue = f"t={d.time:.3f}s: " + "; ".join(msgs)
-            log.warning("Physics instability: %s", self.last_issue)
+            log.warning("물리 불안정: %s", self.last_issue)
             if self.on_issue:
                 self.on_issue(self.last_issue)
             return self.last_issue

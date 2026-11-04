@@ -115,7 +115,7 @@ class Remove(Cmd):
         self.elem = elem
         self.parent = elem.getparent()
         if self.parent is None:
-            raise ValueError("cannot remove the root element")
+            raise ValueError("최상위 요소는 삭제할 수 없습니다")
         self.index = self.parent.index(elem)
         self.text = text or f"Delete {elem.tag}"
 

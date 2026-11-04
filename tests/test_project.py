@@ -26,7 +26,7 @@ def test_project_roundtrip_with_packaging(tmp_path):
     prj.set_group(JointGroup("all", {"b": 1.0}))
     notes = prj.save(ed.doc)
     assert (tmp_path / "proj" / "meshes" / "tet.obj").exists()
-    assert any("packaged" in n for n in notes)
+    assert any("에셋 파일" in n for n in notes)
     # the packaged project no longer depends on the source folder
     import shutil
     shutil.rmtree(src)

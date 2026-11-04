@@ -21,25 +21,25 @@ def attach_face_rig(ed: Editor, rig: FaceRig, group: int = 1) -> None:
     the rig with the editor. The head (and jaw) bodies must exist in the compiled model."""
     m = ed.model
     if m is None:
-        raise ValueError("model must compile before attaching a face")
+        raise ValueError("얼굴을 붙이려면 먼저 모델이 컴파일되어야 합니다")
     import mujoco
     if mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, rig.head_body) < 0:
-        raise ValueError(f"head body '{rig.head_body}' not found")
+        raise ValueError(f"머리 바디 '{rig.head_body}'을(를) 찾을 수 없습니다")
     if rig.jaw_body and mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, rig.jaw_body) < 0:
-        log.warning("jaw body '%s' not found: the face is bound to the head only", rig.jaw_body)
+        log.warning("턱 바디 '%s'이(가) 없어 얼굴을 머리에만 붙였습니다", rig.jaw_body)
         rig.jaw_body = None
         rig.jaw_w[:] = 0
     rig.skin = ed.doc.unique_name("skin", rig.skin)
     jr = rig._jaw_rest(m) if rig.jaw_body else None
     key = _unique_key(ed, rig.skin, "skn")
     sk = make("skin", name=rig.skin, file=key, rgba=" ".join(f"{x:g}" for x in rig.rgba), group=str(group))
-    with ed.batch(f"Attach face {rig.name}"):
-        ed.push(SetMemAsset(ed, key, rig.skn_bytes(jr), f"Face skin data {rig.name}"))
+    with ed.batch(f"얼굴 붙이기 {rig.name}"):
+        ed.push(SetMemAsset(ed, key, rig.skn_bytes(jr), f"얼굴 스킨 데이터 {rig.name}"))
         sec = ed.doc.section("deformable")
         if sec is None:
             sec = make("deformable")
-            ed.push(Insert(ed.doc.root, _section_index(ed, "deformable"), sec, "Add deformable section"))
-        ed.push(Insert(sec, len(sec), sk, f"Add face skin {rig.skin}"))
+            ed.push(Insert(ed.doc.root, _section_index(ed, "deformable"), sec, "deformable 섹션 추가"))
+        ed.push(Insert(sec, len(sec), sk, f"얼굴 스킨 추가 {rig.skin}"))
     ed.rigs[rig.name] = rig
     rig._cache = None
     ed.rigs_changed.emit()
@@ -49,7 +49,7 @@ def detach_face_rig(ed: Editor, name: str) -> None:
     rig = ed.rigs.pop(name)
     sk = ed.doc.find_named("skin", rig.skin)
     if sk is not None:
-        ed.push(Remove(sk, f"Remove face skin {rig.skin}"))
+        ed.push(Remove(sk, f"얼굴 스킨 제거 {rig.skin}"))
     ed.rigs_changed.emit()
 
 
@@ -61,7 +61,7 @@ def rig_from_gltf(path: str | Path, name: str | None = None, head_body: str = "h
     sc = gltf.load(path)
     cands = [g for g in sc.meshes if mesh is None or g.name == mesh or g.node == mesh]
     if not cands:
-        raise ValueError(f"no mesh{' ' + mesh if mesh else ''} in {path}")
+        raise ValueError(f"{path}에 메시{' ' + mesh if mesh else ''}가 없습니다")
     gm = max(cands, key=lambda g: (len(g.morph), len(g.V)))
     _weld_gltf(gm)
     V = gltf.to_mujoco(gm.V, gm.world) * scale + np.asarray(offset, float)
@@ -80,7 +80,7 @@ def rig_from_gltf(path: str | Path, name: str | None = None, head_body: str = "h
     rig.presets = {k: {p: v for p, v in d.items() if p in rig.params} for k, d in DEFAULT_PRESETS.items()}
     rig.meta["source"] = str(path)
     rig.meta["joints"] = gm.joint_names
-    log.info("face rig '%s' from %s: %d vertices, %d shape keys, jaw-weighted vertices: %d",
+    log.info("얼굴 리그 '%s' (%s): 정점 %d, Shape Key %d개, 턱 가중치 정점 %d",
              rig.name, Path(path).name, len(V), len(gm.morph), int((rig.jaw_w > 0.5).sum()))
     return rig
 

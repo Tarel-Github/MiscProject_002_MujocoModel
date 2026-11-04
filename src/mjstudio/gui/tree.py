@@ -10,12 +10,16 @@ from PySide6.QtWidgets import (QAbstractItemView, QHBoxLayout, QLineEdit, QMenu,
 
 from ..core.doc import children, is_elem, parent_tag
 from ..core.editor import Editor
+from .ko import tag_ko
 from .theme import C, icon_for, shape_icon
 
 log = logging.getLogger("mjstudio")
 ROLE = Qt.UserRole
 
-GROUPS = [  # (title, section tags)
+GROUP_KO = {"World": "월드 (모델 구조)", "Assets": "에셋 (메시·텍스처·재질)", "Defaults": "기본 클래스",
+            "Actuators": "액추에이터", "Sensors": "센서", "Tendons": "텐던", "Equality": "구속 (equality)",
+            "Contact": "접촉 설정", "Keyframes": "키프레임", "Deformable": "변형체", "Settings": "설정"}
+GROUPS = [  # (title, section tags) — 화면에는 GROUP_KO 이름으로 표시
     ("World", ("worldbody",)),
     ("Assets", ("asset",)),
     ("Defaults", ("default",)),
@@ -36,11 +40,12 @@ class ModelTree(QTreeWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setHeaderLabels(["Element", "Type"])
+        self.setHeaderLabels(["요소", "종류"])
         from PySide6.QtWidgets import QHeaderView
         self.header().setStretchLastSection(False)
         self.header().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.header().setSectionResizeMode(1, QHeaderView.Interactive)
+        self.setColumnWidth(1, 92)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setDragDropMode(QAbstractItemView.InternalMove)
         self.setDragEnabled(True)
@@ -85,7 +90,7 @@ class TreePanel(QWidget):
         lay.setContentsMargins(2, 2, 2, 2)
         top = QHBoxLayout()
         self.filter = QLineEdit()
-        self.filter.setPlaceholderText("Filter by name…")
+        self.filter.setPlaceholderText("이름으로 찾기…")
         self.filter.setClearButtonEnabled(True)
         self.filter.textChanged.connect(self._apply_filter)
         top.addWidget(self.filter)
@@ -116,7 +121,7 @@ class TreePanel(QWidget):
             secs = [s for t in tags for s in doc.sections(t)]
             if not secs and title not in ("World",):
                 continue
-            g = QTreeWidgetItem([title, ""])
+            g = QTreeWidgetItem([GROUP_KO.get(title, title), ""])
             g.setIcon(0, shape_icon("square", C["dim"]))
             f = QFont()
             f.setBold(True)
@@ -153,6 +158,7 @@ class TreePanel(QWidget):
         if not is_elem(e):
             return
         it = QTreeWidgetItem([self.ed.doc.label(e), self._type_text(e)])
+        it.setToolTip(1, f"{self._type_text(e)}  (MJCF: <{e.tag}>)")
         it.setData(0, ROLE, e)
         it.setIcon(0, icon_for(e.tag, parent_tag(e)))
         it.setForeground(1, QBrush(QColor(C["dim"])))
@@ -168,7 +174,7 @@ class TreePanel(QWidget):
 
     def _type_text(self, e) -> str:
         cls = e.get("class") or e.get("childclass")
-        t = e.tag
+        t = tag_ko(e.tag)
         return f"{t} · {cls}" if cls else t
 
     def _refresh_labels(self, elems) -> None:
@@ -263,10 +269,10 @@ class TreePanel(QWidget):
 
     def _dropped(self, elems, parent, index) -> None:
         try:
-            with self.ed.batch(f"Move {len(elems)} element(s)"):
+            with self.ed.batch(f"요소 {len(elems)}개 이동"):
                 for k, e in enumerate(elems):
                     if parent is e or parent in list(e.iterdescendants()):
-                        raise ValueError("cannot move an element into its own subtree")
+                        raise ValueError("요소를 자기 자신의 하위로 옮길 수 없습니다")
                     self.ed.move(e, parent, None if index < 0 else index + k)
         except Exception as ex:  # noqa: BLE001
-            log.error("Move failed: %s", ex)
+            log.error("이동 실패: %s", ex)

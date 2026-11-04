@@ -100,9 +100,9 @@ class Project:
             p = p / cls.FILE
         data = json.loads(p.read_text(encoding="utf-8"))
         if data.get("format") != FORMAT:
-            raise ValueError(f"{p} is not an mjstudio project")
+            raise ValueError(f"{p}은(는) mjstudio 프로젝트가 아닙니다")
         if int(data.get("version", 1)) > VERSION:
-            log.warning("project written by a newer version (%s); unknown data is preserved", data.get("version"))
+            log.warning("더 새로운 버전(%s)으로 저장된 프로젝트입니다. 모르는 데이터는 그대로 보존합니다", data.get("version"))
         prj = cls(p.parent, data.get("model", "model.xml"))
         prj.data.update(data)
         doc = MjcfDoc.load(prj.model_path)
@@ -115,7 +115,7 @@ class Project:
             try:
                 out[name] = FaceRig.load(meta, self.root / "expressions")
             except (OSError, KeyError, ValueError) as ex:
-                log.error("cannot load expression rig %s: %s", name, ex)
+                log.error("표정 리그 %s을(를) 불러올 수 없음: %s", name, ex)
         return out
 
     def save(self, doc: MjcfDoc, package: bool = True, rigs: dict | None = None) -> list[str]:
@@ -167,7 +167,7 @@ def package_assets(doc: MjcfDoc, root: Path) -> list[str]:
                 else:
                     src = doc.resolve_file(e, k)
                     if src is None or not Path(src).exists():
-                        notes.append(f"missing resource: {v}")
+                        notes.append(f"누락된 리소스: {v}")
                         continue
                     data = None
                 name = Path(v).name
@@ -199,5 +199,5 @@ def package_assets(doc: MjcfDoc, root: Path) -> list[str]:
         comp.set("texturedir", "textures")
     doc.mem_assets.clear()
     doc.base_dir = root
-    notes.append(f"packaged {len(plan)} asset file(s) into {root}")
+    notes.append(f"에셋 파일 {len(plan)}개를 {root}에 모았습니다")
     return notes

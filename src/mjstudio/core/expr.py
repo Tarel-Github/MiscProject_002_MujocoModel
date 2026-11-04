@@ -94,22 +94,22 @@ class FaceRig:
     def add_key(self, name: str, delta) -> None:
         d = np.asarray(delta, float).reshape(-1, 3)
         if d.shape != self.V0.shape:
-            raise ValueError(f"shape key '{name}' has {len(d)} vertices, mesh has {len(self.V0)}")
+            raise ValueError(f"Shape Key '{name}'의 정점 수({len(d)})가 메시({len(self.V0)})와 다릅니다")
         self.keys[name] = d
 
     def add_bone(self, name: str, pivot, weights) -> None:
         w = np.clip(np.asarray(weights, float).reshape(-1), 0, 1)
         if len(w) != len(self.V0):
-            raise ValueError("bone weights length mismatch")
+            raise ValueError("본 가중치 길이가 맞지 않습니다")
         self.bones[name] = ControlBone(name, list(map(float, pivot)), w)
 
     def add_param(self, p: ExprParam) -> None:
         for k in p.keys:
             if k not in self.keys:
-                raise KeyError(f"parameter '{p.name}' uses unknown shape key '{k}'")
+                raise KeyError(f"파라미터 '{p.name}'이(가) 없는 Shape Key '{k}'을(를) 씁니다")
         for b in p.bones:
             if b not in self.bones:
-                raise KeyError(f"parameter '{p.name}' uses unknown bone '{b}'")
+                raise KeyError(f"파라미터 '{p.name}'이(가) 없는 본 '{b}'을(를) 씁니다")
         self.params[p.name] = p
         self.values.setdefault(p.name, 0.0)
 
@@ -122,7 +122,7 @@ class FaceRig:
         elif name in self.presets:
             self.apply_preset(name, value)
         else:
-            raise KeyError(f"unknown expression '{name}'")
+            raise KeyError(f"알 수 없는 표정 '{name}'")
 
     def get(self, name: str) -> float:
         return self.values.get(name, 0.0)
@@ -198,7 +198,7 @@ class FaceRig:
         V = self.local_vertices() if local is None else local
         hid = mujoco.mj_name2id(m, OBJ.mjOBJ_BODY, self.head_body)
         if hid < 0:
-            raise KeyError(f"head body '{self.head_body}' not found")
+            raise KeyError(f"머리 바디 '{self.head_body}'을(를) 찾을 수 없습니다")
         Rh = d.xmat[hid].reshape(3, 3)
         W = V @ Rh.T + d.xpos[hid]
         if jr is not None and self.jaw_w.any():
@@ -253,7 +253,7 @@ class FaceRig:
         if self.jaw_body and self.jaw_w.any():
             if jaw_rest is None:
                 if m is None:
-                    raise ValueError("jaw rest pose needed (pass the compiled model or jaw_rest)")
+                    raise ValueError("턱 기준 자세가 필요합니다 (컴파일된 모델 또는 jaw_rest 전달)")
                 jaw_rest = self._jaw_rest(m)
             ids = np.nonzero(self.jaw_w > 1e-6)[0]
             jb = etree.SubElement(e, "bone", body=self.jaw_body, bindpos=mx.fmt_vec(jaw_rest[0]),
@@ -269,7 +269,7 @@ class FaceRig:
         bones = [(self.head_body, np.zeros(3), mx.QID, 1.0 - self.jaw_w)]
         if self.jaw_body and self.jaw_w.any():
             if jaw_rest is None:
-                raise ValueError("jaw rest pose required")
+                raise ValueError("턱 기준 자세가 필요합니다")
             bones.append((self.jaw_body, np.asarray(jaw_rest[0], float), np.asarray(jaw_rest[1], float), self.jaw_w))
         out = [struct.pack("<4i", len(self.V0), 0, len(self.F), len(bones)),
                self.V0.astype("<f4").tobytes(), self.F.astype("<i4").tobytes()]
@@ -347,7 +347,7 @@ class FaceController:
     # -- expressions
     def set_expression(self, name: str, value: float) -> None:
         if self.rig is None:
-            raise RuntimeError("no face rig")
+            raise RuntimeError("얼굴 리그가 없습니다")
         self.rig.set(name, value)
 
     def expressions(self) -> list[str]:
@@ -357,7 +357,7 @@ class FaceController:
     def _jid(self, name: str) -> int:
         j = mujoco.mj_name2id(self.m, OBJ.mjOBJ_JOINT, name)
         if j < 0:
-            raise KeyError(f"joint '{name}' not found")
+            raise KeyError(f"관절 '{name}'을(를) 찾을 수 없습니다")
         return j
 
     def _drive(self, joint: str, q: float) -> float:

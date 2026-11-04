@@ -32,7 +32,7 @@ NAIL_RGBA = "0.92 0.78 0.72 1"
 class Side:
     def __init__(self, side: str):
         if side not in ("left", "right"):
-            raise ValueError("side must be 'left' or 'right'")
+            raise ValueError("side는 'left' 또는 'right'여야 합니다")
         self.side = side
         self.s = 1.0 if side == "left" else -1.0
         self.tag = "L" if side == "left" else "R"
@@ -171,7 +171,7 @@ def build_hand(ed: Editor, parent: Element | None, side: str = "left", pos=(0, 0
     """Palm + four 3-phalanx fingers + thumb. With wrist=True the palm gets wrist flexion
     and radial/ulnar deviation hinges (forearm pronation belongs to the forearm)."""
     S = Side(side)
-    with ed.structural(f"Build {side} hand"):
+    with ed.structural(f"손 만들기 ({side})"):
         palm = ops.add_body(ed, parent, S.n("hand"), pos=pos, quat=None if quat is None else S.q(quat))
         if wrist:
             _hinge(ed, palm, S.n("wrist_flex"), S.ax((0, -1, 0)), -70, 80, damping=0.2)
@@ -215,7 +215,7 @@ def build_foot(ed: Editor, parent: Element | None, side: str = "left", pos=(0, 0
     s = scale
     zf = -0.075 * s
     nm = S.n
-    with ed.structural(f"Build {side} foot"):
+    with ed.structural(f"발 만들기 ({side})"):
         ankle = ops.add_body(ed, parent, nm("talus"), pos=pos)
         # talocrural axis, medial->lateral is +y for the left foot; lateral malleolus posterior & inferior
         ax_tc = -mx.qrot(mx.QID, np.array([-0.14, 1.0, -0.14]) / np.linalg.norm([-0.14, 1.0, -0.14]))
@@ -318,7 +318,7 @@ def build_head(ed: Editor, parent: Element | None, pos=(0, 0, 0), scale: float =
       jaw_protrude     (optional slide, 0..10 mm) for the translational TMJ phase.
     Eye rotation is a joint-level control independent of facial expressions."""
     s = scale
-    with ed.structural("Build head"):
+    with ed.structural("머리 만들기"):
         head = ops.add_body(ed, parent, "head", pos=pos)
         if neck:
             _hinge(ed, head, "neck_pitch", (0, 1, 0), -40, 50, pos=(0, 0, -0.09 * s), damping=1.0, armature=0.01)
@@ -394,3 +394,44 @@ def make_part(builder, name: str, **kw):
     ed.recompile()
     builder(ed, None, **kw)
     return ed.doc
+
+
+# ======================================================================== single finger part
+FINGER_NAMES_KO = {"index": "검지", "middle": "중지", "ring": "약지", "little": "소지", "thumb": "엄지"}
+
+
+def finger_default_pos(kind: str, side: str = "left", scale: float = 1.0) -> np.ndarray:
+    """Where the finger sits on a palm made by build_hand (palm frame)."""
+    S = Side(side)
+    if kind == "thumb":
+        return S.p(np.array([0.012, 0.022, -0.022]) * scale)
+    spec = next(f for f in FINGERS if f.name == kind)
+    return S.p(np.array(spec.mcp) * scale)
+
+
+def finger_part(kind: str, side: str = "left", scale: float = 1.0, sensors: bool = True,
+                actuators: bool = True):
+    """One finger (index/middle/ring/little: MCP 2 DOF + PIP + DIP; thumb: CMC 2 DOF + MCP + IP)
+    as a standalone part whose root frame is the finger base (MCP / CMC joint centre)."""
+    from dataclasses import replace
+
+    from ..core.parts import extract_part
+    if kind not in FINGER_NAMES_KO:
+        raise ValueError(f"알 수 없는 손가락 '{kind}'")
+    ed = Editor()
+    ed.new(f"{kind}_{side}")
+    wb = ed.doc.worldbody
+    for g in [c for c in wb if getattr(c, "tag", None) in ("geom", "light")]:
+        wb.remove(g)
+    ed.recompile()
+    with ed.batch("finger"):
+        base = ops.add_body(ed, None, "finger_base")
+        if kind == "thumb":
+            root = build_thumb(ed, base, side, scale, sensors, actuators)
+        else:
+            spec = replace(next(f for f in FINGERS if f.name == kind), mcp=(0.0, 0.0, 0.0))
+            root = build_finger(ed, base, spec, side, scale, sensors, actuators)
+    part = extract_part(ed.doc, root, at_origin=False)
+    proot = [c for c in part.section("worldbody") if getattr(c, "tag", None) == "body"][0]
+    proot.attrib.pop("pos", None)          # keep the thumb's resting orientation, drop its offset
+    return part

@@ -87,15 +87,15 @@ class TriMesh:
     def validate(self) -> list[str]:
         issues = []
         if self.nv == 0 or self.nf == 0:
-            issues.append("empty mesh")
+            issues.append("빈 메시")
             return issues
         if self.nv < 4:
-            issues.append("MuJoCo requires at least 4 vertices per mesh")
+            issues.append("MuJoCo 메시는 정점이 4개 이상이어야 합니다")
         if self.F.min() < 0 or self.F.max() >= self.nv:
-            issues.append("face index out of range")
+            issues.append("면의 정점 번호가 범위를 벗어남")
         deg = np.sum((self.F[:, 0] == self.F[:, 1]) | (self.F[:, 1] == self.F[:, 2]) | (self.F[:, 0] == self.F[:, 2]))
         if deg:
-            issues.append(f"{int(deg)} degenerate face(s)")
+            issues.append(f"면적이 0인 면 {int(deg)}개")
         return issues
 
     # ------------------------------------------------------------ transforms
@@ -121,7 +121,7 @@ class TriMesh:
 
     def add_face(self, i: int, j: int, k: int) -> int:
         if len({i, j, k}) < 3 or max(i, j, k) >= self.nv or min(i, j, k) < 0:
-            raise ValueError("a face needs three distinct existing vertices")
+            raise ValueError("면에는 서로 다른 기존 정점 3개가 필요합니다")
         self.F = np.vstack([self.F, np.array([[i, j, k]], np.int64)])
         return self.nf - 1
 
@@ -362,7 +362,7 @@ def read_mesh_file(path: str | Path) -> TriMesh:
         return read_obj(data, p.stem)
     if ext == ".stl":
         return read_stl(data, p.stem)
-    raise ValueError(f"unsupported mesh format {ext} (use OBJ or STL; glTF via gltf.py)")
+    raise ValueError(f"지원하지 않는 메시 형식 {ext} (OBJ 또는 STL; glTF는 GLB 가져오기 사용)")
 
 
 def encode(m: TriMesh, ext: str) -> bytes:
@@ -371,7 +371,7 @@ def encode(m: TriMesh, ext: str) -> bytes:
         return write_obj(m)
     if ext == "stl":
         return write_stl(m)
-    raise ValueError(f"cannot write .{ext}")
+    raise ValueError(f".{ext} 형식으로 쓸 수 없습니다")
 
 
 def from_compiled(model, mesh_id: int, scale=None) -> TriMesh:

@@ -1,4 +1,4 @@
-"""Property editor for the selected element (schema driven, never lossy)."""
+"""선택 요소의 속성 편집기 (스키마 기반, 원본 속성을 잃지 않음)."""
 from __future__ import annotations
 
 import logging
@@ -16,6 +16,7 @@ from ..core import mathx as mx
 from ..core.doc import parent_tag
 from ..core.editor import Editor
 from ..core.schema import (BOOL, ENUM, INT, NAME, ORIENT_KEYS, REAL, REF, RGBA, VEC, Attr, attrs_for)
+from .ko import TAG_KO
 from .theme import C, no_buttons, icon_for
 
 log = logging.getLogger("mjstudio")
@@ -23,6 +24,9 @@ OBJ = mujoco.mjtObj
 POSE_TAGS = {"body", "geom", "site", "camera", "light", "inertial", "frame"}
 GROUP_ORDER = ["General", "Transform", "Transmission", "Dynamics", "Physics", "Limits", "Contact", "Solver",
                "Visual", "User"]
+GROUP_KO = {"General": "일반", "Transform": "변환", "Transmission": "전달 (대상)", "Dynamics": "동역학",
+            "Physics": "물리", "Limits": "범위·제한", "Contact": "접촉", "Solver": "솔버", "Visual": "표시",
+            "User": "사용자 데이터"}
 
 
 def _valid(spec: Attr, text: str) -> bool:
@@ -89,14 +93,14 @@ class AttrRow:
         self.label.setToolTip(tip)
         self.reset = QToolButton()
         self.reset.setText("×")
-        self.reset.setToolTip("Remove explicit value (inherit default)")
+        self.reset.setToolTip("직접 지정한 값 지우기 (기본값 상속)")
         self.reset.setFixedWidth(20)
         self.reset.clicked.connect(lambda: self.commit(None))
         self.color_btn = None
         if spec.kind in (ENUM, BOOL):
             self.w = QComboBox()
             self.choices = list(spec.choices) if spec.kind == ENUM else ["false", "true"]
-            self.w.addItem("(inherit)")
+            self.w.addItem("(상속)")
             self.w.addItems(self.choices)
             self.w.activated.connect(self._combo)
         elif spec.kind == REF:
@@ -141,12 +145,12 @@ class AttrRow:
         f.setBold(explicit)
         self.label.setFont(f)
         self.label.setStyleSheet(f"color: {C['text'] if explicit else C['dim']};")
-        src = f"inherited from {inh[1]}: {inh[0]}" if inh else "no default"
+        src = f"상속값 ({inh[1]}): {inh[0]}" if inh else "기본값 없음"
         self.label.setToolTip((self.spec.tip + "\n" if self.spec.tip else "") + src)
         self.reset.setEnabled(explicit)
         self.w.blockSignals(True)
         if isinstance(self.w, QComboBox) and not self.w.isEditable():
-            self.w.setItemText(0, f"(inherit: {inh[0]})" if inh else "(unset)")
+            self.w.setItemText(0, f"(상속: {inh[0]})" if inh else "(지정 안 함)")
             self.w.setCurrentIndex(self.choices.index(val) + 1 if val in self.choices else 0)
         elif isinstance(self.w, QComboBox):
             names = self.panel.ref_names(self.spec)
@@ -189,7 +193,7 @@ class AttrRow:
         if cur is None:
             cur = np.array([0.5, 0.5, 0.5, 1.0])
         c = QColorDialog.getColor(QColor.fromRgbF(*[float(np.clip(x, 0, 1)) for x in cur]), self.panel,
-                                  "Colour", QColorDialog.ShowAlphaChannel)
+                                  "색상", QColorDialog.ShowAlphaChannel)
         if c.isValid():
             self.commit(mx.fmt_vec([c.redF(), c.greenF(), c.blueF(), c.alphaF()], 4))
 
@@ -208,6 +212,7 @@ class PropsPanel(QScrollArea):
         self.rows: list[AttrRow] = []
         self.resolved: dict = {}
         self._self_edit = False
+        self._sig = None
         self.setWidgetResizable(True)
         self.body = QWidget()
         self.setWidget(self.body)
@@ -228,11 +233,22 @@ class PropsPanel(QScrollArea):
         try:
             fn()
         except Exception as ex:  # noqa: BLE001
-            QMessageBox.warning(self, "Edit failed", str(ex))
-            log.error("Edit failed: %s", ex)
+            QMessageBox.warning(self, "수정 실패", str(ex))
+            log.error("수정 실패: %s", ex)
         finally:
             self._self_edit = False
+        e = self.elem
+        if e is not None and self._layout_sig(e) != self._sig:
+            # 패널 구성 자체가 바뀜 (예: fromto 해제, 모르는 속성 추가) → 현재 이벤트가 끝난 뒤 다시 만들기
+            QTimer.singleShot(0, lambda: self.elem is e and self.set_elem(e))
+            return
         self.refresh()
+
+    def _layout_sig(self, e) -> tuple:
+        """패널 구성에 영향을 주는 상태: 스키마에 없는 속성 이름들, fromto 프레임 사용 여부."""
+        known = {s.name for s in attrs_for(e.tag, parent_tag(e))}
+        extra = tuple(k for k in e.attrib if k not in known and k != "name" and not (e.tag == "default" and k == "class"))
+        return extra, (self.ed.doc.fromto_active(e) is not None) if e.tag in POSE_TAGS else False
 
     def ref_names(self, spec: Attr) -> list[str]:
         kind = spec.ref or ""
@@ -253,6 +269,9 @@ class PropsPanel(QScrollArea):
             return
         if self._self_edit and action == "do":
             return  # refresh happens in apply()
+        if self._layout_sig(self.elem) != self._sig:
+            self.set_elem(self.elem)
+            return
         self.refresh()
 
     # ------------------------------------------------------------- building
@@ -272,8 +291,10 @@ class PropsPanel(QScrollArea):
     def set_elem(self, e) -> None:
         self._clear()
         self.elem = e
+        self._sig = self._layout_sig(e) if e is not None else None
         if e is None:
-            lbl = QLabel("Nothing selected.\n\nSelect an element in the hierarchy or click in the viewport.")
+            lbl = QLabel("선택한 요소가 없습니다.\n\n계층 트리에서 요소를 고르거나 3D 화면에서 클릭하세요.\n"
+                         "굵은 글씨 = 직접 지정한 값, 회색 = 기본 클래스에서 상속된 값")
             lbl.setStyleSheet(f"color: {C['dim']};")
             lbl.setWordWrap(True)
             self.lay.addWidget(lbl)
@@ -288,7 +309,9 @@ class PropsPanel(QScrollArea):
         ic = QLabel()
         ic.setPixmap(icon_for(e.tag, ptag).pixmap(18, 18))
         head.addWidget(ic)
-        title = QLabel(f"<b>{e.tag}</b>" + (f"  <span style='color:{C['dim']}'>in {ptag}</span>" if ptag else ""))
+        ko = TAG_KO.get(e.tag)
+        title = QLabel((f"<b>{ko}</b> <span style='color:{C['dim']}'>({e.tag})</span>" if ko else f"<b>{e.tag}</b>") +
+                       (f"  <span style='color:{C['dim']}'>· 부모: {TAG_KO.get(ptag, ptag)}</span>" if ptag else ""))
         head.addWidget(title, 1)
         self.lay.addLayout(head)
         specs = attrs_for(e.tag, ptag)
@@ -296,9 +319,9 @@ class PropsPanel(QScrollArea):
         if any(s.kind == NAME for s in specs) or e.tag == "default":
             key = "class" if e.tag == "default" else "name"
             row = QHBoxLayout()
-            row.addWidget(QLabel("Name" if key == "name" else "Class"))
+            row.addWidget(QLabel("이름" if key == "name" else "클래스"))
             self.name_edit = QLineEdit(e.get(key) or "")
-            self.name_edit.setPlaceholderText("(unnamed)")
+            self.name_edit.setPlaceholderText("(이름 없음)")
             self.name_edit.editingFinished.connect(self._rename)
             row.addWidget(self.name_edit, 1)
             self.lay.addLayout(row)
@@ -316,14 +339,14 @@ class PropsPanel(QScrollArea):
                     continue
             groups.setdefault(s.group, []).append(s)
         for g in sorted(groups, key=lambda x: GROUP_ORDER.index(x) if x in GROUP_ORDER else 99):
-            box = QGroupBox(g)
+            box = QGroupBox(f"{GROUP_KO.get(g, g)}")
             form = QGridLayout(box)
             form.setContentsMargins(6, 4, 6, 4)
             form.setVerticalSpacing(3)
             for r, s in enumerate(groups[g]):
                 row = AttrRow(self, s)
                 if s.angle:
-                    row.label.setText(f"{s.name} ({'deg' if doc.angle_unit == 'degree' else 'rad'})")
+                    row.label.setText(f"{s.name} ({'도' if doc.angle_unit == 'degree' else 'rad'})")
                 form.addWidget(row.label, r, 0)
                 form.addWidget(row.widget(), r, 1)
                 self.rows.append(row)
@@ -333,7 +356,7 @@ class PropsPanel(QScrollArea):
             adv = [Attr(k, VEC, None, group="Transform") for k in ("fromto",) + ORIENT_KEYS
                    if any(s.name == k for s in specs)]
             if adv:
-                box = QGroupBox("Raw transform attributes")
+                box = QGroupBox("변환 원본 속성 (고급)")
                 form = QGridLayout(box)
                 form.setContentsMargins(6, 4, 6, 4)
                 for r, s in enumerate(adv):
@@ -345,7 +368,7 @@ class PropsPanel(QScrollArea):
                 self.lay.addWidget(box)
         # unknown attributes (kept verbatim)
         extra = [k for k in e.attrib if k not in known and k not in ("name",) and not (e.tag == "default" and k == "class")]
-        box = QGroupBox("Other attributes")
+        box = QGroupBox("기타 속성 (그대로 보존)")
         v = QVBoxLayout(box)
         grid = QGridLayout()
         for r, k in enumerate(extra):
@@ -354,7 +377,7 @@ class PropsPanel(QScrollArea):
             grid.addWidget(row.widget(), r, 1)
             self.rows.append(row)
         v.addLayout(grid)
-        add = QPushButton("+ Add attribute…")
+        add = QPushButton("+ 속성 추가…")
         add.clicked.connect(self._add_attr)
         v.addWidget(add)
         self.lay.addWidget(box)
@@ -363,7 +386,7 @@ class PropsPanel(QScrollArea):
         self.info.setTextFormat(Qt.RichText)
         self.info.setWordWrap(True)
         self.info.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        ibox = QGroupBox("Compiled (read-only)")
+        ibox = QGroupBox("컴파일 결과 (읽기 전용)")
         il = QVBoxLayout(ibox)
         il.addWidget(self.info)
         self.lay.addWidget(ibox)
@@ -399,10 +422,10 @@ class PropsPanel(QScrollArea):
 
     def _add_attr(self) -> None:
         e = self.elem
-        k, ok = QInputDialog.getText(self, "Add attribute", "Attribute name:")
+        k, ok = QInputDialog.getText(self, "속성 추가", "속성 이름 (MJCF 그대로, 예: friction):")
         if not ok or not k.strip():
             return
-        v, ok = QInputDialog.getText(self, "Add attribute", f"Value for '{k.strip()}':")
+        v, ok = QInputDialog.getText(self, "속성 추가", f"'{k.strip()}' 값:")
         if not ok:
             return
         self.apply(lambda: self.ed.set_attr(e, k.strip(), v))
@@ -421,21 +444,21 @@ class PropsPanel(QScrollArea):
     def _info_html(self, e) -> str:
         m, d, im = self.ed.model, self.ed.data, self.ed.idmap
         if m is None or im is None:
-            return "<i>no compiled model</i>"
+            return "<i>컴파일된 모델 없음</i>"
         o = im.obj(e)
         if o is None:
-            return "<i>not a compiled object (or not mapped)</i>"
+            return "<i>컴파일 객체가 아님 (또는 연결 안 됨)</i>"
         ot, i = o
         fv = lambda v, p=4: mx.fmt_vec(np.round(v, p), 6)  # noqa: E731
         rows = [("id", str(i))]
         if ot == int(OBJ.mjOBJ_BODY):
-            rows += [("mass", f"{m.body_mass[i]:.6g} kg"), ("subtree mass", f"{m.body_subtreemass[i]:.6g} kg"),
-                     ("inertia (diag)", fv(m.body_inertia[i], 6)), ("world pos", fv(d.xpos[i])),
-                     ("COM (world)", fv(d.xipos[i])), ("dofs", str(int(m.body_dofnum[i])))]
+            rows += [("질량", f"{m.body_mass[i]:.6g} kg"), ("하위 전체 질량", f"{m.body_subtreemass[i]:.6g} kg"),
+                     ("관성 (대각)", fv(m.body_inertia[i], 6)), ("월드 위치", fv(d.xpos[i])),
+                     ("질량 중심 (월드)", fv(d.xipos[i])), ("자유도", str(int(m.body_dofnum[i])))]
         elif ot == int(OBJ.mjOBJ_JOINT):
             jt = int(m.jnt_type[i])
             a = m.jnt_qposadr[i]
-            names = {0: "free", 1: "ball", 2: "slide", 3: "hinge"}
+            names = {0: "자유 (free)", 1: "볼 (ball)", 2: "슬라이드 (slide)", 3: "경첩 (hinge)"}
             if jt == 3:
                 q = f"{math.degrees(d.qpos[a]):.3f}°  ({d.qpos[a]:.5f} rad)"
                 rng = f"{math.degrees(m.jnt_range[i][0]):.2f}° … {math.degrees(m.jnt_range[i][1]):.2f}°"
@@ -444,34 +467,34 @@ class PropsPanel(QScrollArea):
             else:
                 n = 7 if jt == 0 else 4
                 q, rng = fv(d.qpos[a:a + n]), (f"{math.degrees(m.jnt_range[i][1]):.1f}°" if jt == 1 else "-")
-            rows += [("type", names[jt]), ("qpos", q), ("range", rng + ("" if m.jnt_limited[i] else " (unlimited)")),
-                     ("qposadr / dofadr", f"{a} / {m.jnt_dofadr[i]}"), ("anchor (world)", fv(d.xanchor[i])),
-                     ("axis (world)", fv(d.xaxis[i]))]
+            rows += [("종류", names[jt]), ("현재 값 (qpos)", q), ("범위", rng + ("" if m.jnt_limited[i] else " (제한 없음)")),
+                     ("qposadr / dofadr", f"{a} / {m.jnt_dofadr[i]}"), ("회전 중심 (월드)", fv(d.xanchor[i])),
+                     ("축 (월드)", fv(d.xaxis[i]))]
         elif ot == int(OBJ.mjOBJ_GEOM):
             coll = bool(m.geom_contype[i] or m.geom_conaffinity[i])
-            rows += [("type", mujoco.mjtGeom(m.geom_type[i]).name[7:].lower()), ("size", fv(m.geom_size[i])),
-                     ("world pos", fv(d.geom_xpos[i])), ("collision", "yes" if coll else "no (visual only)"),
-                     ("body", mujoco.mj_id2name(m, OBJ.mjOBJ_BODY, m.geom_bodyid[i]) or str(m.geom_bodyid[i])),
-                     ("bounding radius", f"{m.geom_rbound[i]:.4g}")]
+            rows += [("종류", mujoco.mjtGeom(m.geom_type[i]).name[7:].lower()), ("크기", fv(m.geom_size[i])),
+                     ("월드 위치", fv(d.geom_xpos[i])), ("충돌", "예" if coll else "아니오 (보이기만)"),
+                     ("바디", mujoco.mj_id2name(m, OBJ.mjOBJ_BODY, m.geom_bodyid[i]) or str(m.geom_bodyid[i])),
+                     ("경계 반지름", f"{m.geom_rbound[i]:.4g}")]
         elif ot == int(OBJ.mjOBJ_SITE):
-            rows += [("world pos", fv(d.site_xpos[i])), ("size", fv(m.site_size[i]))]
+            rows += [("월드 위치", fv(d.site_xpos[i])), ("크기", fv(m.site_size[i]))]
         elif ot == int(OBJ.mjOBJ_ACTUATOR):
-            rows += [("ctrl", f"{d.ctrl[i]:.4g}"), ("ctrlrange", fv(m.actuator_ctrlrange[i])),
-                     ("force", f"{d.actuator_force[i]:.4g}"), ("gear", fv(m.actuator_gear[i][:3]))]
+            rows += [("제어 입력 (ctrl)", f"{d.ctrl[i]:.4g}"), ("제어 범위", fv(m.actuator_ctrlrange[i])),
+                     ("힘", f"{d.actuator_force[i]:.4g}"), ("기어비", fv(m.actuator_gear[i][:3]))]
         elif ot == int(OBJ.mjOBJ_SENSOR):
             a, n = m.sensor_adr[i], m.sensor_dim[i]
-            rows += [("dim", str(n)), ("value", fv(d.sensordata[a:a + n], 5))]
+            rows += [("차원", str(n)), ("값", fv(d.sensordata[a:a + n], 5))]
         elif ot == int(OBJ.mjOBJ_CAMERA):
-            rows += [("world pos", fv(d.cam_xpos[i])), ("fovy", f"{m.cam_fovy[i]:.1f}°")]
+            rows += [("월드 위치", fv(d.cam_xpos[i])), ("시야각", f"{m.cam_fovy[i]:.1f}°")]
         return "<table>" + "".join(
             f"<tr><td style='color:{C['dim']};padding-right:8px'>{k}</td><td>{v}</td></tr>" for k, v in rows) + "</table>"
 
 
 class TransformBox(QGroupBox):
-    """Position + rotation (Euler, degrees) editor; joints get position + axis."""
+    """위치 + 회전(오일러, 도) 편집. 관절은 위치 + 축."""
 
     def __init__(self, panel: PropsPanel, e):
-        super().__init__("Transform (parent frame)")
+        super().__init__("위치·회전 (부모 기준)")
         self.panel, self.e = panel, e
         doc = panel.ed.doc
         g = QGridLayout(self)
@@ -480,16 +503,16 @@ class TransformBox(QGroupBox):
         self.rot = [Spin(-360, 360, 3, 1.0) for _ in range(3)]
         seq = doc.eulerseq if (doc.eulerseq.islower() or doc.eulerseq.isupper()) else "xyz"
         self.seq = seq
-        g.addWidget(QLabel("Position"), 0, 0)
+        g.addWidget(QLabel("위치 (m)"), 0, 0)
         for k, s in enumerate(self.pos):
             g.addWidget(s, 0, k + 1)
             s.valueChanged.connect(self._changed)
         if e.tag == "joint":
-            g.addWidget(QLabel("Axis"), 1, 0)
+            g.addWidget(QLabel("회전축"), 1, 0)
         elif e.tag == "light":
-            g.addWidget(QLabel("Direction"), 1, 0)
+            g.addWidget(QLabel("방향"), 1, 0)
         else:
-            g.addWidget(QLabel(f"Rotation°\n(euler {seq})"), 1, 0)
+            g.addWidget(QLabel(f"회전 (도)\n(오일러 {seq})"), 1, 0)
         for k, s in enumerate(self.rot):
             if e.tag in ("joint", "light"):
                 s.setRange(-1e3, 1e3)
@@ -498,7 +521,7 @@ class TransformBox(QGroupBox):
             g.addWidget(s, 1, k + 1)
             s.valueChanged.connect(self._changed)
         if doc.fromto_active(e) is not None:
-            note = QLabel("frame defined by 'fromto' (rotation about the segment is ignored)")
+            note = QLabel("'fromto'로 정해진 프레임입니다 (선분 축 둘레 회전은 무시됨)")
             note.setStyleSheet(f"color:{C['dim']}")
             note.setWordWrap(True)
             g.addWidget(note, 2, 0, 1, 4)
@@ -544,10 +567,10 @@ class TransformBox(QGroupBox):
         key = f"tf:{id(e)}"
         if e.tag == "joint":
             self.panel.apply(lambda: ed.set_attrs(e, {"pos": mx.fmt_vec(p), "axis": mx.fmt_vec(r)},
-                                                  "Edit joint frame", merge_key=key))
+                                                  "관절 위치·축 수정", merge_key=key))
         elif e.tag == "light":
             self.panel.apply(lambda: ed.set_attrs(e, {"pos": mx.fmt_vec(p), "dir": mx.fmt_vec(r)},
-                                                  "Edit light", merge_key=key))
+                                                  "조명 수정", merge_key=key))
         else:
             q = mx.euler2q([math.radians(x) for x in r], self.seq)
-            self.panel.apply(lambda: ed.set_pose(e, p, q, "Edit transform", merge_key=key))
+            self.panel.apply(lambda: ed.set_pose(e, p, q, "위치·회전 수정", merge_key=key))

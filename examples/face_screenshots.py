@@ -37,6 +37,9 @@ shots = [("neutral", {}, 0.0, (0, 0)), ("smile", {"preset": "smile"}, 0.0, (0, 0
          ("frown", {"preset": "frown"}, 0.0, (0, 0)), ("surprise", {"preset": "surprise"}, 0.45, (0, 8)),
          ("blink", {"preset": "blink"}, 0.0, (0, 0)), ("wink_left", {"preset": "wink_left"}, 0.0, (0, 0)),
          ("jaw_open_smile", {"preset": "smile"}, 0.8, (0, 0)), ("eyes_left_up", {}, 0.0, (30, 15))]
+CAPTION = {"neutral": "무표정 (neutral)", "smile": "미소 (smile)", "frown": "찡그림 (frown)",
+           "surprise": "놀람 (surprise) + 턱 벌림", "blink": "눈 감기 (blink)", "wink_left": "윙크 왼쪽 (wink_left)",
+           "jaw_open_smile": "미소 + 턱 크게 벌림", "eyes_left_up": "시선: 왼쪽 위 (눈 관절)"}
 tiles = []
 for name, ex, jaw, (yaw, pitch) in shots:
     rig.reset()
@@ -61,7 +64,7 @@ for k, (name, img) in enumerate(tiles):
     x, y = 420 * (k % W), 420 * (k // W)
     p.drawImage(x, y, img)
     p.setPen(0xFFFFFF)
-    p.drawText(x + 10, y + 405, name)
+    p.drawText(x + 10, y + 405, CAPTION.get(name, name))
 p.end()
 sheet.save(str(out / "face_expressions.png"))
 print("saved", out / "face_expressions.png")
