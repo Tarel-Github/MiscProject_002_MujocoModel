@@ -5,6 +5,7 @@ selections, id maps, tree items) survive undo/redo.
 """
 from __future__ import annotations
 
+import time
 from typing import Callable
 
 from .doc import Element
@@ -58,6 +59,7 @@ class SetAttrs(Cmd):
         self.text = text or f"Edit {elem.tag}"
         self.merge_key = merge_key
         self._old = list(elem.attrib.items())
+        self.t = time.monotonic()
 
     def redo(self) -> None:
         for k, v in self.changes.items():
@@ -77,11 +79,15 @@ class SetAttrs(Cmd):
 
     def can_merge(self, other: Cmd) -> bool:
         return (isinstance(other, SetAttrs) and self.merge_key is not None
-                and other.merge_key == self.merge_key and other.elem is self.elem)
+                and other.merge_key == self.merge_key and other.elem is self.elem
+                and other.t - self.t < self.MERGE_WINDOW)
+
+    MERGE_WINDOW = 1.5  # seconds between edits that still merge into one undo step
 
     def merge(self, other: Cmd) -> None:
         assert isinstance(other, SetAttrs)
         self.changes.update(other.changes)
+        self.t = other.t
 
 
 class Insert(Cmd):
@@ -141,7 +147,13 @@ class Move(Cmd):
         self.old_parent = self.elem.getparent()
         self.old_index = self.old_parent.index(self.elem)
         self.old_parent.remove(self.elem)
-        idx = len(self.new_parent) if self.new_index is None else min(self.new_index, len(self.new_parent))
+        if self.new_index is None:
+            idx = len(self.new_parent)
+        else:
+            idx = self.new_index
+            if self.new_parent is self.old_parent and self.old_index < idx:
+                idx -= 1  # removal shifted the following siblings
+            idx = min(max(idx, 0), len(self.new_parent))
         self.new_parent.insert(idx, self.elem)
 
     def undo(self) -> None:
